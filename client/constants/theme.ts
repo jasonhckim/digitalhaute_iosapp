@@ -105,6 +105,16 @@ export const Shadows = {
 };
 
 export const Typography = {
+  sizes: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    "2xl": 24,
+    "3xl": 28,
+    "4xl": 34,
+  },
   largeTitle: {
     fontSize: 34,
     lineHeight: 41,

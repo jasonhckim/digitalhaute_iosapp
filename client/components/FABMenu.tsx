@@ -1,11 +1,6 @@
 import React, { useState } from "react";
-import { StyleSheet, Pressable, View, Modal } from "react-native";
+import { StyleSheet, Pressable, View, Modal, Platform } from "react-native";
 import { Feather } from "@expo/vector-icons";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { BlurView } from "expo-blur";
 
@@ -25,24 +20,9 @@ interface FABMenuProps {
   bottom?: number;
 }
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const scale = useSharedValue(1);
   const { theme } = useTheme();
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    scale.value = withSpring(0.9, { damping: 15, stiffness: 150 });
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, { damping: 15, stiffness: 150 });
-  };
 
   const handleOpen = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -61,21 +41,18 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
 
   return (
     <>
-      <AnimatedPressable
+      <Pressable
         style={[
           styles.fab,
           { bottom: bottom + Spacing.lg },
           Shadows.fab,
-          animatedStyle,
         ]}
         onPress={handleOpen}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
       >
         <GoldGradient style={styles.gradient}>
           <Feather name="plus" size={24} color="#FFFFFF" />
         </GoldGradient>
-      </AnimatedPressable>
+      </Pressable>
 
       <Modal
         visible={isOpen}
@@ -84,25 +61,47 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
         onRequestClose={handleClose}
       >
         <Pressable style={styles.overlay} onPress={handleClose}>
-          <BlurView intensity={20} style={styles.blur}>
-            <View style={styles.menuContainer}>
-              {items.map((item, index) => (
-                <Pressable
-                  key={index}
-                  style={[styles.menuItem, { backgroundColor: theme.backgroundSecondary }]}
-                  onPress={() => handleItemPress(item)}
-                >
-                  <View style={[styles.iconContainer, { backgroundColor: BrandColors.goldLight }]}>
-                    <Feather name={item.icon} size={20} color={BrandColors.gold} />
-                  </View>
-                  <ThemedText style={[styles.menuLabel, { color: theme.text }]}>
-                    {item.label}
-                  </ThemedText>
-                  <Feather name="chevron-right" size={20} color={theme.textSecondary} />
-                </Pressable>
-              ))}
+          {Platform.OS === "ios" ? (
+            <BlurView intensity={20} style={styles.blur}>
+              <View style={styles.menuContainer}>
+                {items.map((item, index) => (
+                  <Pressable
+                    key={index}
+                    style={[styles.menuItem, { backgroundColor: theme.backgroundSecondary }]}
+                    onPress={() => handleItemPress(item)}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: BrandColors.goldLight }]}>
+                      <Feather name={item.icon} size={20} color={BrandColors.gold} />
+                    </View>
+                    <ThemedText style={[styles.menuLabel, { color: theme.text }]}>
+                      {item.label}
+                    </ThemedText>
+                    <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+                  </Pressable>
+                ))}
+              </View>
+            </BlurView>
+          ) : (
+            <View style={[styles.blur, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+              <View style={styles.menuContainer}>
+                {items.map((item, index) => (
+                  <Pressable
+                    key={index}
+                    style={[styles.menuItem, { backgroundColor: theme.backgroundSecondary }]}
+                    onPress={() => handleItemPress(item)}
+                  >
+                    <View style={[styles.iconContainer, { backgroundColor: BrandColors.goldLight }]}>
+                      <Feather name={item.icon} size={20} color={BrandColors.gold} />
+                    </View>
+                    <ThemedText style={[styles.menuLabel, { color: theme.text }]}>
+                      {item.label}
+                    </ThemedText>
+                    <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          </BlurView>
+          )}
         </Pressable>
       </Modal>
     </>

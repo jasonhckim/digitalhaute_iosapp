@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 - Safe area handling for notches and home indicators
 - Tab bar with blur effect on iOS
 - Image picker integration for product photos
+- **AI Label Scanning** - Quick Add feature uses GPT-5.2 vision to extract product info from hang tags/labels
 
 ## External Dependencies
 
