@@ -34,13 +34,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         messages: [
           {
             role: "system",
-            content: `You are an expert at reading fashion product labels and hang tags. Extract information from the label image and return a JSON object with the following fields (use null for fields you cannot determine):
+            content: `You are an expert at reading wholesale fashion product labels and hang tags from trade shows and showrooms. Extract information from the label image and return a JSON object with the following fields (use null for fields you cannot determine):
 {
   "styleName": "Product name or style name",
   "styleNumber": "Style number, SKU, or product code",
   "wholesalePrice": number (wholesale/cost price without currency symbol),
   "retailPrice": number (suggested retail price without currency symbol),
-  "colors": ["array of color names"],
+  "colors": ["array of available color options"],
   "sizes": ["array of available sizes like XS, S, M, L, XL or numeric sizes"],
   "category": "One of: Tops, Bottoms, Dresses, Outerwear, Accessories, Shoes, Bags, Jewelry",
   "brandName": "Brand or vendor name",
@@ -48,12 +48,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   "notes": "Any additional info like fabric content, care instructions, etc."
 }
 
-Important:
-- Extract actual numbers for prices (remove $ or currency symbols)
-- If you see "WS" or "Wholesale" before a price, that's the wholesale price
-- If you see "MSRP", "Retail", or "SRP" before a price, that's the retail price
-- Look for style numbers which often start with letters followed by numbers
-- Colors may be listed as color codes - try to interpret them
+CRITICAL - This is for WHOLESALE fashion buying:
+- If there's only ONE price on the label, it's the WHOLESALE PRICE (put in wholesalePrice, leave retailPrice as null)
+- Only use retailPrice if you see "MSRP", "Retail", "SRP", or similar indicators
+- The color shown at the top (like "L.BLUE") is the current item's color - the list below shows ALL available colors
+- Extract the list of available colors, not just the current item's color
+- Interpret color abbreviations: L.BLUE = Light Blue, L.PINK = Light Pink, etc.
+- Style numbers typically start with letters followed by numbers (e.g., HF26C297)
+- Look for category indicators like "Top", "Dress", "Pants" on the label
 - Return valid JSON only, no markdown or explanation`
           },
           {
