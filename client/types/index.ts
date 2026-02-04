@@ -1,0 +1,87 @@
+export type ProductStatus = 'maybe' | 'ordered' | 'shipped' | 'delivered' | 'received' | 'cancelled';
+
+export interface Product {
+  id: string;
+  name: string;
+  styleNumber: string;
+  vendorId: string;
+  vendorName: string;
+  category: string;
+  subcategory?: string;
+  wholesalePrice: number;
+  retailPrice?: number;
+  quantity: number;
+  colors: string[];
+  sizes: string[];
+  deliveryDate: string;
+  receivedDate?: string;
+  season: string;
+  collection?: string;
+  notes?: string;
+  status: ProductStatus;
+  imageUri?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vendor {
+  id: string;
+  name: string;
+  contactName?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  paymentTerms?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Budget {
+  id: string;
+  season: string;
+  category?: string;
+  vendorId?: string;
+  amount: number;
+  spent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DashboardStats {
+  totalProducts: number;
+  totalVendors: number;
+  nextDeliveryDate?: string;
+  budgetUtilization: number;
+  totalBudget: number;
+  totalSpent: number;
+  totalRemaining: number;
+}
+
+export const CATEGORIES = [
+  'Tops',
+  'Bottoms',
+  'Dresses',
+  'Outerwear',
+  'Accessories',
+  'Shoes',
+  'Bags',
+  'Jewelry',
+] as const;
+
+export const SEASONS = [
+  'Spring 2026',
+  'Summer 2026',
+  'Fall 2026',
+  'Winter 2026',
+  'Resort 2027',
+] as const;
+
+export const STATUS_LABELS: Record<ProductStatus, string> = {
+  maybe: 'Maybe',
+  ordered: 'Ordered',
+  shipped: 'Shipped',
+  delivered: 'Delivered',
+  received: 'Received',
+  cancelled: 'Cancelled',
+};
