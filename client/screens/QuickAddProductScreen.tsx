@@ -6,7 +6,6 @@ import {
   Pressable,
   Image,
   ActivityIndicator,
-  Platform,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -15,7 +14,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Input } from "@/components/Input";
@@ -77,7 +75,7 @@ export default function QuickAddProductScreen() {
     VendorStorage.getAll().then(setVendors);
   }, []);
 
-  const takePhoto = async (): Promise<string | null> => {
+  const takePhoto = async (includeBase64 = false): Promise<{ uri: string; base64?: string } | null> => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Please allow camera access to take photos.");
@@ -87,29 +85,33 @@ export default function QuickAddProductScreen() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: false,
       quality: 0.8,
+      base64: includeBase64,
     });
 
     if (!result.canceled && result.assets[0]) {
-      return result.assets[0].uri;
+      return {
+        uri: result.assets[0].uri,
+        base64: result.assets[0].base64 || undefined,
+      };
     }
     return null;
   };
 
   const handleTakeProductPhoto = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const uri = await takePhoto();
-    if (uri) {
-      setProductImageUri(uri);
+    const result = await takePhoto(false);
+    if (result) {
+      setProductImageUri(result.uri);
       setStep("label_photo");
     }
   };
 
   const handleTakeLabelPhoto = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const uri = await takePhoto();
-    if (uri) {
-      setLabelImageUri(uri);
-      await scanLabel(uri);
+    const result = await takePhoto(true);
+    if (result) {
+      setLabelImageUri(result.uri);
+      await scanLabel(result.base64);
     }
   };
 
@@ -117,35 +119,26 @@ export default function QuickAddProductScreen() {
     setStep("review");
   };
 
-  const scanLabel = async (uri: string) => {
+  const scanLabel = async (base64Data?: string) => {
     setStep("scanning");
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    try {
-      let base64: string;
-      
-      if (Platform.OS === "web") {
-        const response = await fetch(uri);
-        const blob = await response.blob();
-        base64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            resolve(result.split(",")[1]);
-          };
-          reader.readAsDataURL(blob);
-        });
-      } else {
-        base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-      }
+    if (!base64Data) {
+      Alert.alert(
+        "Scan Failed",
+        "Could not capture the image. You can still enter the details manually.",
+        [{ text: "OK" }]
+      );
+      setStep("review");
+      return;
+    }
 
+    try {
       const apiUrl = getApiUrl();
       const response = await fetch(new URL("/api/scan-label", apiUrl).toString(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64 }),
+        body: JSON.stringify({ imageBase64: base64Data }),
       });
 
       if (!response.ok) {
