@@ -11,7 +11,7 @@ import * as Haptics from "expo-haptics";
 import { ThemedText } from "@/components/ThemedText";
 import { ProductCard } from "@/components/ProductCard";
 import { EmptyState } from "@/components/EmptyState";
-import { FAB } from "@/components/FAB";
+import { FABMenu } from "@/components/FABMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, BrandColors } from "@/constants/theme";
 import { ProductStorage } from "@/lib/storage";
@@ -56,6 +56,19 @@ export default function ProductsScreen() {
     await loadData();
     setRefreshing(false);
   };
+
+  const fabMenuItems = [
+    {
+      icon: "zap" as const,
+      label: "Quick Add (Scan Label)",
+      onPress: () => navigation.navigate("QuickAddProduct"),
+    },
+    {
+      icon: "edit" as const,
+      label: "Manual Entry",
+      onPress: () => navigation.navigate("AddProduct"),
+    },
+  ];
 
   const handleAddProduct = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -174,7 +187,7 @@ export default function ProductsScreen() {
         }
       />
 
-      <FAB onPress={handleAddProduct} bottom={tabBarHeight} />
+      <FABMenu items={fabMenuItems} bottom={tabBarHeight} />
     </View>
   );
 }

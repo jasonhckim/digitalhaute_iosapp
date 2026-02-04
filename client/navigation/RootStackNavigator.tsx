@@ -7,6 +7,7 @@ import MainTabNavigator from "@/navigation/MainTabNavigator";
 import AddProductScreen from "@/screens/AddProductScreen";
 import AddVendorScreen from "@/screens/AddVendorScreen";
 import AddBudgetScreen from "@/screens/AddBudgetScreen";
+import QuickAddProductScreen from "@/screens/QuickAddProductScreen";
 import ProductDetailScreen from "@/screens/ProductDetailScreen";
 import VendorDetailScreen from "@/screens/VendorDetailScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
@@ -18,6 +19,7 @@ export type RootStackParamList = {
   AddProduct: undefined;
   AddVendor: undefined;
   AddBudget: undefined;
+  QuickAddProduct: undefined;
   ProductDetail: { productId: string };
   VendorDetail: { vendorId: string };
 };
@@ -66,6 +68,19 @@ export default function RootStackNavigator() {
         component={AddBudgetScreen}
         options={({ navigation }) => ({
           headerTitle: "Add Budget",
+          presentation: "modal",
+          headerLeft: () => (
+            <HeaderButton onPress={() => navigation.goBack()}>
+              <Feather name="x" size={24} color={theme.text} />
+            </HeaderButton>
+          ),
+        })}
+      />
+      <Stack.Screen
+        name="QuickAddProduct"
+        component={QuickAddProductScreen}
+        options={({ navigation }) => ({
+          headerTitle: "Quick Add",
           presentation: "modal",
           headerLeft: () => (
             <HeaderButton onPress={() => navigation.goBack()}>

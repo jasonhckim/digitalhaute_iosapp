@@ -13,7 +13,7 @@ import { BudgetCard } from "@/components/BudgetCard";
 import { ProductCard } from "@/components/ProductCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { EmptyState } from "@/components/EmptyState";
-import { FAB } from "@/components/FAB";
+import { FABMenu } from "@/components/FABMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors } from "@/constants/theme";
 import { ProductStorage, VendorStorage, BudgetStorage, getDashboardStats } from "@/lib/storage";
@@ -64,6 +64,29 @@ export default function DashboardScreen() {
     await loadData();
     setRefreshing(false);
   };
+
+  const fabMenuItems = [
+    {
+      icon: "zap" as const,
+      label: "Quick Add (Scan Label)",
+      onPress: () => navigation.navigate("QuickAddProduct"),
+    },
+    {
+      icon: "edit" as const,
+      label: "Manual Entry",
+      onPress: () => navigation.navigate("AddProduct"),
+    },
+    {
+      icon: "users" as const,
+      label: "Add Vendor",
+      onPress: () => navigation.navigate("AddVendor"),
+    },
+    {
+      icon: "dollar-sign" as const,
+      label: "Add Budget",
+      onPress: () => navigation.navigate("AddBudget"),
+    },
+  ];
 
   const handleAddProduct = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -181,7 +204,7 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
 
-      <FAB onPress={handleAddProduct} bottom={tabBarHeight} />
+      <FABMenu items={fabMenuItems} bottom={tabBarHeight} />
     </View>
   );
 }
