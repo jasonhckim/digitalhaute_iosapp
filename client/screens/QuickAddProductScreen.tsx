@@ -24,7 +24,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, BrandColors, Typography } from "@/constants/theme";
 import { ProductStorage, VendorStorage } from "@/lib/storage";
-import { Vendor, CATEGORIES, SEASONS, ProductStatus } from "@/types";
+import { Vendor, CATEGORIES, SEASONS, ProductStatus, PackRatio } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -69,11 +69,51 @@ export default function QuickAddProductScreen() {
   const [wholesalePrice, setWholesalePrice] = useState("");
   const [retailPrice, setRetailPrice] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [packs, setPacks] = useState("1");
   const [season, setSeason] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [colors, setColors] = useState("");
+  const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [sizes, setSizes] = useState("");
+  const [vendorPackRatio, setVendorPackRatio] = useState<PackRatio | undefined>();
+
+  const selectedVendor = vendors.find(v => v.id === vendorId);
+
+  useEffect(() => {
+    if (selectedVendor?.packRatio) {
+      setVendorPackRatio(selectedVendor.packRatio);
+      setSizes(selectedVendor.packRatio.sizes.join(", "));
+    } else {
+      setVendorPackRatio(undefined);
+    }
+  }, [vendorId, selectedVendor]);
+
+  const getTotalUnitsFromPacks = (): number => {
+    if (!vendorPackRatio) return parseInt(quantity, 10) || 0;
+    const numPacks = parseInt(packs, 10) || 0;
+    const unitsPerPack = vendorPackRatio.quantities.reduce((sum, q) => sum + q, 0);
+    return numPacks * unitsPerPack;
+  };
+
+  const getPackBreakdown = (): string => {
+    if (!vendorPackRatio) return "";
+    const numPacks = parseInt(packs, 10) || 0;
+    return vendorPackRatio.sizes.map((size, i) => 
+      `${vendorPackRatio.quantities[i] * numPacks} ${size}`
+    ).join(" + ");
+  };
+
+  const colorList = colors.split(",").map(c => c.trim()).filter(Boolean);
+
+  const toggleColorSelection = (color: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSelectedColors(prev => 
+      prev.includes(color) 
+        ? prev.filter(c => c !== color)
+        : [...prev, color]
+    );
+  };
 
   useEffect(() => {
     VendorStorage.getAll().then(setVendors);
@@ -239,6 +279,10 @@ export default function QuickAddProductScreen() {
     try {
       const vendor = vendors.find((v) => v.id === vendorId);
       
+      const finalQuantity = vendorPackRatio 
+        ? getTotalUnitsFromPacks() 
+        : parseInt(quantity, 10);
+
       await ProductStorage.create({
         name: name.trim(),
         styleNumber: styleNumber.trim() || `STY-${Date.now().toString(36).toUpperCase()}`,
@@ -247,8 +291,11 @@ export default function QuickAddProductScreen() {
         category,
         wholesalePrice: parseFloat(wholesalePrice),
         retailPrice: retailPrice ? parseFloat(retailPrice) : undefined,
-        quantity: parseInt(quantity),
+        quantity: finalQuantity,
+        packs: vendorPackRatio ? parseInt(packs, 10) : undefined,
+        packRatio: vendorPackRatio,
         colors: colors.split(",").map((c) => c.trim()).filter(Boolean),
+        selectedColors: selectedColors.length > 0 ? selectedColors : undefined,
         sizes: sizes.split(",").map((s) => s.trim()).filter(Boolean),
         deliveryDate,
         season,
@@ -271,7 +318,7 @@ export default function QuickAddProductScreen() {
   const categoryOptions = CATEGORIES.map((c) => ({ label: c, value: c }));
   const seasonOptions = SEASONS.map((s) => ({ label: s, value: s }));
 
-  const selectedVendor = vendors.find((v) => v.id === sessionVendorId);
+  const sessionVendor = vendors.find((v) => v.id === sessionVendorId);
 
   if (step === "setup") {
     return (
@@ -328,7 +375,7 @@ export default function QuickAddProductScreen() {
           <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
             <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
-              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+              {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
           <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
@@ -355,7 +402,7 @@ export default function QuickAddProductScreen() {
           <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
             <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
-              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+              {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
           {productImageUri ? (
@@ -390,7 +437,7 @@ export default function QuickAddProductScreen() {
           <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
             <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
-              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+              {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
           {labelImageUri ? (
@@ -500,11 +547,58 @@ export default function QuickAddProductScreen() {
       </View>
 
       <Input
-        label="Colors"
+        label="Available Colors"
         placeholder="e.g., Black, Navy, White"
         value={colors}
         onChangeText={setColors}
       />
+
+      {colorList.length > 0 ? (
+        <View style={styles.colorSection}>
+          <ThemedText style={[styles.colorLabel, { color: theme.text }]}>
+            Colors Ordered
+          </ThemedText>
+          <ThemedText style={[styles.colorHint, { color: theme.textSecondary }]}>
+            Tap to select colors you ordered
+          </ThemedText>
+          <View style={styles.colorGrid}>
+            {colorList.map((color) => (
+              <Pressable
+                key={color}
+                onPress={() => toggleColorSelection(color)}
+                style={[
+                  styles.colorChip,
+                  { 
+                    backgroundColor: selectedColors.includes(color) 
+                      ? BrandColors.goldLight 
+                      : theme.backgroundSecondary,
+                    borderColor: selectedColors.includes(color)
+                      ? BrandColors.gold
+                      : "transparent",
+                  }
+                ]}
+              >
+                <Feather 
+                  name={selectedColors.includes(color) ? "heart" : "heart"} 
+                  size={16} 
+                  color={selectedColors.includes(color) ? BrandColors.gold : theme.textSecondary} 
+                  style={{ opacity: selectedColors.includes(color) ? 1 : 0.4 }}
+                />
+                <ThemedText 
+                  style={[
+                    styles.colorChipText, 
+                    { 
+                      color: selectedColors.includes(color) ? BrandColors.gold : theme.text 
+                    }
+                  ]}
+                >
+                  {color}
+                </ThemedText>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <Input
         label="Sizes"
@@ -513,13 +607,42 @@ export default function QuickAddProductScreen() {
         onChangeText={setSizes}
       />
 
-      <Input
-        label="Quantity"
-        placeholder="1"
-        value={quantity}
-        onChangeText={setQuantity}
-        keyboardType="number-pad"
-      />
+      {vendorPackRatio ? (
+        <View style={styles.packSection}>
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              <Input
+                label="Packs"
+                placeholder="1"
+                value={packs}
+                onChangeText={setPacks}
+                keyboardType="number-pad"
+              />
+            </View>
+            <View style={[styles.halfInput, styles.packInfo]}>
+              <ThemedText style={[styles.packInfoLabel, { color: theme.textSecondary }]}>
+                Pack Ratio
+              </ThemedText>
+              <ThemedText style={[styles.packInfoValue, { color: theme.text }]}>
+                {vendorPackRatio.quantities.join("-")}
+              </ThemedText>
+            </View>
+          </View>
+          <View style={[styles.packBreakdown, { backgroundColor: BrandColors.goldLight }]}>
+            <ThemedText style={[styles.packBreakdownText, { color: BrandColors.gold }]}>
+              {getPackBreakdown()} = {getTotalUnitsFromPacks()} total units
+            </ThemedText>
+          </View>
+        </View>
+      ) : (
+        <Input
+          label="Quantity"
+          placeholder="1"
+          value={quantity}
+          onChangeText={setQuantity}
+          keyboardType="number-pad"
+        />
+      )}
 
       <Select
         label="Season"
@@ -687,5 +810,62 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     marginTop: Spacing.md,
     fontStyle: "italic",
+  },
+  colorSection: {
+    marginBottom: Spacing.lg,
+  },
+  colorLabel: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  colorHint: {
+    fontSize: Typography.sizes.xs,
+    marginBottom: Spacing.md,
+  },
+  colorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+  },
+  colorChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.full,
+    borderWidth: 2,
+  },
+  colorChipText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "500",
+  },
+  packSection: {
+    marginBottom: Spacing.lg,
+  },
+  packInfo: {
+    justifyContent: "center",
+    alignItems: "center",
+    paddingTop: Spacing.md,
+  },
+  packInfoLabel: {
+    fontSize: Typography.sizes.xs,
+    marginBottom: Spacing.xs,
+  },
+  packInfoValue: {
+    fontSize: Typography.sizes.lg,
+    fontWeight: "700",
+    letterSpacing: 2,
+  },
+  packBreakdown: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
+  },
+  packBreakdownText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "600",
+    textAlign: "center",
   },
 });
