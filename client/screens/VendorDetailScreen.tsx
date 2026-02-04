@@ -189,6 +189,25 @@ export default function VendorDetailScreen() {
             <ThemedText style={styles.contactText}>{vendor.paymentTerms}</ThemedText>
           </View>
         ) : null}
+        
+        {vendor.packRatio ? (
+          <View style={[styles.packRatioRow, { backgroundColor: `${BrandColors.gold}10` }]}>
+            <View style={styles.packRatioHeader}>
+              <Feather name="package" size={18} color={BrandColors.gold} />
+              <ThemedText style={[styles.packRatioLabel, { color: BrandColors.gold }]}>
+                Pack Ratio
+              </ThemedText>
+            </View>
+            <ThemedText style={[styles.packRatioValue, { color: theme.text }]}>
+              {vendor.packRatio.sizes.map((size, i) => 
+                `${vendor.packRatio!.quantities[i]} ${size}`
+              ).join(" + ")}
+            </ThemedText>
+            <ThemedText style={[styles.packRatioTotal, { color: theme.textSecondary }]}>
+              {vendor.packRatio.quantities.reduce((sum, q) => sum + q, 0)} units per pack
+            </ThemedText>
+          </View>
+        ) : null}
       </View>
 
       {vendor.notes ? (
@@ -294,5 +313,30 @@ const styles = StyleSheet.create({
   deleteButton: {
     marginTop: Spacing.md,
     borderColor: BrandColors.error,
+  },
+  packRatioRow: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.sm,
+    marginTop: Spacing.md,
+  },
+  packRatioHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  packRatioLabel: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginLeft: Spacing.sm,
+  },
+  packRatioValue: {
+    fontSize: 15,
+    fontWeight: "500",
+    marginLeft: 26,
+  },
+  packRatioTotal: {
+    fontSize: 12,
+    marginLeft: 26,
+    marginTop: Spacing.xs,
   },
 });
