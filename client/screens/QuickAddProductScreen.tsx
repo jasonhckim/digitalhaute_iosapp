@@ -30,7 +30,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Step = "product_photo" | "label_photo" | "scanning" | "review";
+type Step = "setup" | "product_photo" | "label_photo" | "scanning" | "review";
 
 interface ExtractedData {
   styleName?: string;
@@ -51,9 +51,13 @@ export default function QuickAddProductScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
 
-  const [step, setStep] = useState<Step>("product_photo");
+  const [step, setStep] = useState<Step>("setup");
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Session settings (pre-selected before scanning)
+  const [sessionVendorId, setSessionVendorId] = useState("");
+  const [sessionSeason, setSessionSeason] = useState("");
 
   const [productImageUri, setProductImageUri] = useState<string | undefined>();
   const [labelImageUri, setLabelImageUri] = useState<string | undefined>();
@@ -95,6 +99,22 @@ export default function QuickAddProductScreen() {
       };
     }
     return null;
+  };
+
+  const handleStartSession = () => {
+    if (!sessionVendorId) {
+      Alert.alert("Select Vendor", "Please select a vendor before starting.");
+      return;
+    }
+    if (!sessionSeason) {
+      Alert.alert("Select Season", "Please select a season before starting.");
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Pre-fill vendor and season for the product
+    setVendorId(sessionVendorId);
+    setSeason(sessionSeason);
+    setStep("product_photo");
   };
 
   const handleTakeProductPhoto = async () => {
@@ -251,10 +271,66 @@ export default function QuickAddProductScreen() {
   const categoryOptions = CATEGORIES.map((c) => ({ label: c, value: c }));
   const seasonOptions = SEASONS.map((s) => ({ label: s, value: s }));
 
+  const selectedVendor = vendors.find((v) => v.id === sessionVendorId);
+
+  if (step === "setup") {
+    return (
+      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+        <KeyboardAwareScrollViewCompat
+          contentContainerStyle={styles.setupContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight, alignSelf: "center" }]}>
+            <Feather name="briefcase" size={48} color={BrandColors.gold} />
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: theme.text, textAlign: "center" }]}>
+            Start Scanning Session
+          </ThemedText>
+          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary, textAlign: "center", marginBottom: Spacing.xl }]}>
+            Select the vendor and season first. These will be applied to all products you scan.
+          </ThemedText>
+
+          <Select
+            label="Vendor"
+            placeholder="Select vendor..."
+            options={vendorOptions}
+            value={sessionVendorId}
+            onChange={setSessionVendorId}
+          />
+
+          <Select
+            label="Season"
+            placeholder="Select season..."
+            options={seasonOptions}
+            value={sessionSeason}
+            onChange={setSessionSeason}
+          />
+
+          <View style={styles.sessionInfo}>
+            <Feather name="info" size={16} color={theme.textSecondary} />
+            <ThemedText style={[styles.sessionInfoText, { color: theme.textSecondary }]}>
+              You can scan multiple products from this vendor without re-entering this info.
+            </ThemedText>
+          </View>
+
+          <Button onPress={handleStartSession} style={styles.actionButton}>
+            Start Scanning
+          </Button>
+        </KeyboardAwareScrollViewCompat>
+      </ThemedView>
+    );
+  }
+
   if (step === "product_photo") {
     return (
       <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
         <View style={styles.stepContainer}>
+          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+            <Feather name="briefcase" size={14} color={BrandColors.gold} />
+            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+            </ThemedText>
+          </View>
           <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
             <Feather name="camera" size={48} color={BrandColors.gold} />
           </View>
@@ -276,6 +352,12 @@ export default function QuickAddProductScreen() {
     return (
       <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
         <View style={styles.stepContainer}>
+          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+            <Feather name="briefcase" size={14} color={BrandColors.gold} />
+            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+            </ThemedText>
+          </View>
           {productImageUri ? (
             <Image source={{ uri: productImageUri }} style={styles.previewThumb} />
           ) : null}
@@ -305,12 +387,26 @@ export default function QuickAddProductScreen() {
     return (
       <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
         <View style={styles.stepContainer}>
-          <ActivityIndicator size="large" color={BrandColors.gold} />
+          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+            <Feather name="briefcase" size={14} color={BrandColors.gold} />
+            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+              {selectedVendor?.name || "Unknown Vendor"} • {sessionSeason}
+            </ThemedText>
+          </View>
+          {labelImageUri ? (
+            <Image source={{ uri: labelImageUri }} style={styles.scanningImage} />
+          ) : null}
+          <View style={styles.scanningOverlay}>
+            <ActivityIndicator size="large" color={BrandColors.gold} />
+          </View>
           <ThemedText style={[styles.stepTitle, { color: theme.text, marginTop: Spacing.xl }]}>
             Reading Label...
           </ThemedText>
           <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
-            AI is extracting product information from the label
+            AI is extracting style number, price, colors, and more
+          </ThemedText>
+          <ThemedText style={[styles.scanningHint, { color: theme.textSecondary }]}>
+            This typically takes 5-10 seconds
           </ThemedText>
         </View>
       </ThemedView>
@@ -545,5 +641,51 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: "top",
     paddingTop: Spacing.md,
+  },
+  setupContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing["3xl"],
+  },
+  sessionInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  sessionInfoText: {
+    fontSize: Typography.sizes.sm,
+    flex: 1,
+    lineHeight: 20,
+  },
+  vendorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.full,
+    marginBottom: Spacing.lg,
+  },
+  vendorBadgeText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "600",
+  },
+  scanningImage: {
+    width: 120,
+    height: 80,
+    borderRadius: BorderRadius.md,
+    opacity: 0.7,
+  },
+  scanningOverlay: {
+    marginTop: Spacing.lg,
+  },
+  scanningHint: {
+    fontSize: Typography.sizes.xs,
+    marginTop: Spacing.md,
+    fontStyle: "italic",
   },
 });
