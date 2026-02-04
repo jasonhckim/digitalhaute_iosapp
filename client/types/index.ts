@@ -11,7 +11,10 @@ export interface Product {
   wholesalePrice: number;
   retailPrice?: number;
   quantity: number;
+  packs?: number;
+  packRatio?: PackRatio;
   colors: string[];
+  selectedColors?: string[];
   sizes: string[];
   deliveryDate: string;
   receivedDate?: string;
@@ -24,6 +27,11 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface PackRatio {
+  sizes: string[];
+  quantities: number[];
+}
+
 export interface Vendor {
   id: string;
   name: string;
@@ -32,6 +40,7 @@ export interface Vendor {
   phone?: string;
   website?: string;
   paymentTerms?: string;
+  packRatio?: PackRatio;
   notes?: string;
   createdAt: string;
   updatedAt: string;
