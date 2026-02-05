@@ -64,7 +64,6 @@ export default function QuickAddProductScreen() {
   const [isScanComplete, setIsScanComplete] = useState(false);
   const scanPromiseRef = useRef<Promise<ExtractedData | null> | null>(null);
 
-  const [name, setName] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
   const [vendorId, setVendorId] = useState("");
   const [category, setCategory] = useState("");
@@ -234,7 +233,7 @@ export default function QuickAddProductScreen() {
   };
 
   const applyExtractedData = (data: ExtractedData) => {
-    if (data.styleName) setName(data.styleName);
+    if (data.styleName) setStyleNumber(data.styleName);
     if (data.styleNumber) setStyleNumber(data.styleNumber);
     if (data.wholesalePrice) setWholesalePrice(data.wholesalePrice.toString());
     if (data.retailPrice) setRetailPrice(data.retailPrice.toString());
@@ -265,7 +264,7 @@ export default function QuickAddProductScreen() {
   };
 
   const validateForm = () => {
-    if (!name.trim()) return "Product name is required";
+    if (!styleNumber.trim()) return "Style number is required";
     if (!vendorId) return "Please select a vendor";
     if (!category) return "Please select a category";
     if (!wholesalePrice || isNaN(parseFloat(wholesalePrice))) return "Valid wholesale price is required";
@@ -293,8 +292,8 @@ export default function QuickAddProductScreen() {
         : parseInt(quantity, 10);
 
       await ProductStorage.create({
-        name: name.trim(),
-        styleNumber: styleNumber.trim() || `STY-${Date.now().toString(36).toUpperCase()}`,
+        name: styleNumber.trim(),
+        styleNumber: styleNumber.trim(),
         vendorId,
         vendorName: vendor?.name || "Unknown Vendor",
         category,
@@ -512,15 +511,8 @@ export default function QuickAddProductScreen() {
       </View>
 
       <Input
-        label="Product Name"
-        placeholder="Enter product name"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <Input
         label="Style Number"
-        placeholder="e.g., STY-12345"
+        placeholder="e.g., STY-12345 (becomes product name)"
         value={styleNumber}
         onChangeText={setStyleNumber}
       />
