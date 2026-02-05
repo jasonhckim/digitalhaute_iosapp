@@ -13,7 +13,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as ImagePicker from "expo-image-picker";
+import { QuickCamera } from "@/components/QuickCamera";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { Input } from "@/components/Input";
@@ -30,7 +30,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Step = "setup" | "label_photo" | "product_photo" | "processing" | "review";
+type Step = "setup" | "label_photo" | "label_camera" | "product_photo" | "product_camera" | "processing" | "review";
 
 interface ExtractedData {
   styleName?: string;
@@ -120,29 +120,6 @@ export default function QuickAddProductScreen() {
     VendorStorage.getAll().then(setVendors);
   }, []);
 
-  const takePhoto = async (forLabel = false): Promise<{ uri: string; base64?: string } | null> => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow camera access to take photos.");
-      return null;
-    }
-
-    // Lower quality for label scan (just need text), higher for product display
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
-      quality: forLabel ? 0.5 : 0.8,
-      base64: forLabel,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      return {
-        uri: result.assets[0].uri,
-        base64: result.assets[0].base64 || undefined,
-      };
-    }
-    return null;
-  };
-
   const handleStartSession = () => {
     if (!sessionVendorId) {
       Alert.alert("Select Vendor", "Please select a vendor before starting.");
@@ -158,15 +135,16 @@ export default function QuickAddProductScreen() {
     setStep("label_photo");
   };
 
-  const handleTakeLabelPhoto = async () => {
+  const handleOpenLabelCamera = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await takePhoto(true);
-    if (result) {
-      setLabelImageUri(result.uri);
-      setIsScanComplete(false);
-      scanPromiseRef.current = scanLabelInBackground(result.base64);
-      setStep("product_photo");
-    }
+    setStep("label_camera");
+  };
+
+  const handleLabelCaptured = (uri: string, base64?: string) => {
+    setLabelImageUri(uri);
+    setIsScanComplete(false);
+    scanPromiseRef.current = scanLabelInBackground(base64);
+    setStep("product_photo");
   };
 
   const handleSkipLabel = () => {
@@ -175,13 +153,14 @@ export default function QuickAddProductScreen() {
     setStep("product_photo");
   };
 
-  const handleTakeProductPhoto = async () => {
+  const handleOpenProductCamera = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await takePhoto(false);
-    if (result) {
-      setProductImageUri(result.uri);
-      await finishAndShowReview();
-    }
+    setStep("product_camera");
+  };
+
+  const handleProductCaptured = async (uri: string) => {
+    setProductImageUri(uri);
+    await finishAndShowReview();
   };
 
   const handleSkipProductPhoto = async () => {
@@ -271,7 +250,6 @@ export default function QuickAddProductScreen() {
     if (!wholesalePrice || isNaN(parseFloat(wholesalePrice))) return "Valid wholesale price is required";
     if (!quantity || isNaN(parseInt(quantity))) return "Valid quantity is required";
     if (!season) return "Please select a season";
-    if (!deliveryDate) return "Delivery date is required";
     return null;
   };
 
@@ -396,7 +374,7 @@ export default function QuickAddProductScreen() {
           <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
             Take a photo of the hang tag or label to auto-fill product details
           </ThemedText>
-          <Button onPress={handleTakeLabelPhoto} style={styles.actionButton}>
+          <Button onPress={handleOpenLabelCamera} style={styles.actionButton}>
             Scan Label
           </Button>
           <Pressable onPress={handleSkipLabel} style={styles.skipButton}>
@@ -406,6 +384,17 @@ export default function QuickAddProductScreen() {
           </Pressable>
         </View>
       </ThemedView>
+    );
+  }
+
+  if (step === "label_camera") {
+    return (
+      <QuickCamera
+        onCapture={handleLabelCaptured}
+        onCancel={() => setStep("label_photo")}
+        includeBase64={true}
+        title="Scan Label"
+      />
     );
   }
 
@@ -436,7 +425,7 @@ export default function QuickAddProductScreen() {
           <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
             Take a photo of the product to save with your order
           </ThemedText>
-          <Button onPress={handleTakeProductPhoto} style={styles.actionButton}>
+          <Button onPress={handleOpenProductCamera} style={styles.actionButton}>
             Take Product Photo
           </Button>
           <Pressable onPress={handleSkipProductPhoto} style={styles.skipButton}>
@@ -446,6 +435,17 @@ export default function QuickAddProductScreen() {
           </Pressable>
         </View>
       </ThemedView>
+    );
+  }
+
+  if (step === "product_camera") {
+    return (
+      <QuickCamera
+        onCapture={handleProductCaptured}
+        onCancel={() => setStep("product_photo")}
+        includeBase64={false}
+        title="Product Photo"
+      />
     );
   }
 
