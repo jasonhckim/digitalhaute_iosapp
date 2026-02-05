@@ -30,7 +30,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5.2",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
