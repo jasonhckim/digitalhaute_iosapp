@@ -101,3 +101,11 @@ export interface AppSettings {
   markupMultiplier: number;
   roundingMode: RoundingMode;
 }
+
+export interface ShopifyStatus {
+  success: boolean;
+  configured: boolean;
+  connected: boolean;
+  shopDomain?: string;
+  connectedAt?: string;
+}

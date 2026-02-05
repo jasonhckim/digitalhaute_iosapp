@@ -18,6 +18,7 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, BrandColors, Shadows } from "@/constants/theme";
 import { ProductStorage, SettingsStorage } from "@/lib/storage";
+import { checkShopifyStatus, exportToShopify } from "@/lib/shopify";
 import { Product, CATEGORIES, AppSettings } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -39,6 +40,7 @@ export default function ProductsScreen() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingShopify, setIsExportingShopify] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -216,7 +218,7 @@ export default function ProductsScreen() {
     return csvContent;
   };
 
-  const handleExport = async () => {
+  const handleCSVExport = async () => {
     if (selectedIds.size === 0) {
       Alert.alert("No Products Selected", "Please select at least one product to export.");
       return;
@@ -250,6 +252,46 @@ export default function ProductsScreen() {
       Alert.alert("Export Failed", "There was an error creating the export file.");
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleShopifyExport = async () => {
+    if (selectedIds.size === 0) {
+      Alert.alert("No Products Selected", "Please select at least one product to export.");
+      return;
+    }
+
+    setIsExportingShopify(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const status = await checkShopifyStatus();
+      if (!status.connected || !status.shopDomain) {
+        Alert.alert(
+          "Shopify Not Connected",
+          "Connect your Shopify store in Settings first.",
+        );
+        return;
+      }
+
+      const result = await exportToShopify(
+        Array.from(selectedIds),
+        status.shopDomain,
+      );
+
+      Alert.alert(
+        "Export Successful",
+        `${result.count} product${result.count !== 1 ? "s" : ""} exported to Shopify.`,
+      );
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Shopify export error:", error);
+      Alert.alert(
+        "Export Failed",
+        error instanceof Error ? error.message : "There was an error exporting to Shopify.",
+      );
+    } finally {
+      setIsExportingShopify(false);
     }
   };
 
@@ -398,17 +440,35 @@ export default function ProductsScreen() {
 
       {selectionMode ? (
         <View style={[styles.exportBar, { paddingBottom: tabBarHeight + Spacing.md }]}>
-          <Button
-            onPress={handleExport}
-            style={styles.exportButton}
-          >
-            <View style={styles.exportButtonContent}>
-              <Feather name="download" size={18} color="#fff" />
-              <ThemedText style={styles.exportButtonText}>
-                {isExporting ? "Exporting..." : `Export ${selectedIds.size} to Shopify CSV`}
-              </ThemedText>
-            </View>
-          </Button>
+          <ThemedText style={[styles.exportSelectionCount, { color: theme.textSecondary }]}>
+            {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""} selected
+          </ThemedText>
+          <View style={styles.exportButtonRow}>
+            <Button
+              onPress={handleCSVExport}
+              style={styles.exportButtonHalf}
+              disabled={isExporting || isExportingShopify}
+            >
+              <View style={styles.exportButtonContent}>
+                <Feather name="download" size={18} color="#fff" />
+                <ThemedText style={styles.exportButtonText}>
+                  {isExporting ? "Exporting..." : "CSV"}
+                </ThemedText>
+              </View>
+            </Button>
+            <Button
+              onPress={handleShopifyExport}
+              style={styles.exportButtonHalf}
+              disabled={isExporting || isExportingShopify}
+            >
+              <View style={styles.exportButtonContent}>
+                <Feather name="shopping-bag" size={18} color="#fff" />
+                <ThemedText style={styles.exportButtonText}>
+                  {isExportingShopify ? "Exporting..." : "Shopify"}
+                </ThemedText>
+              </View>
+            </Button>
+          </View>
         </View>
       ) : (
         <FABMenu items={fabMenuItems} bottom={tabBarHeight} />
@@ -486,7 +546,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     ...Shadows.card,
   },
-  exportButton: {
+  exportSelectionCount: {
+    fontSize: 13,
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  exportButtonRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  exportButtonHalf: {
+    flex: 1,
     backgroundColor: BrandColors.gold,
     height: 52,
     borderRadius: BorderRadius.md,

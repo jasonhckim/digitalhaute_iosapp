@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
   TextInput,
   Pressable,
   ActivityIndicator,
+  Linking,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -17,7 +18,8 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { SettingsStorage } from "@/lib/storage";
-import { AppSettings, RoundingMode } from "@/types";
+import { AppSettings, RoundingMode, ShopifyStatus } from "@/types";
+import { checkShopifyStatus } from "@/lib/shopify";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
 
 export default function SettingsScreen() {
@@ -29,10 +31,30 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [markupText, setMarkupText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [shopifyStatus, setShopifyStatus] = useState<ShopifyStatus | null>(null);
+  const [shopifyLoading, setShopifyLoading] = useState(true);
 
   useEffect(() => {
     loadSettings();
   }, []);
+
+  const loadShopifyStatus = useCallback(async () => {
+    setShopifyLoading(true);
+    try {
+      const status = await checkShopifyStatus();
+      setShopifyStatus(status);
+    } catch {
+      setShopifyStatus(null);
+    } finally {
+      setShopifyLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadShopifyStatus();
+    }, [loadShopifyStatus])
+  );
 
   const loadSettings = async () => {
     const loaded = await SettingsStorage.get();
@@ -188,6 +210,66 @@ export default function SettingsScreen() {
               ${multiplier > 0 ? exampleRetail.toFixed(2) : "—"}
             </ThemedText>
           </View>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.iconContainer, { backgroundColor: shopifyStatus?.connected ? "#e6f4ea" : `${BrandColors.gold}15` }]}>
+              <Feather name="shopping-bag" size={20} color={shopifyStatus?.connected ? "#34a853" : BrandColors.gold} />
+            </View>
+            <ThemedText style={styles.sectionTitle}>Shopify Integration</ThemedText>
+          </View>
+
+          {shopifyLoading ? (
+            <View style={styles.shopifyLoadingContainer}>
+              <ActivityIndicator size="small" color={BrandColors.gold} />
+            </View>
+          ) : shopifyStatus?.connected ? (
+            <View>
+              <View style={styles.shopifyConnectedRow}>
+                <View style={[styles.shopifyStatusDot, { backgroundColor: "#34a853" }]} />
+                <ThemedText style={styles.shopifyConnectedText}>Connected</ThemedText>
+              </View>
+              <ThemedText style={[styles.shopifyDomain, { color: theme.textSecondary }]}>
+                {shopifyStatus.shopDomain}
+              </ThemedText>
+              {shopifyStatus.connectedAt ? (
+                <ThemedText style={[styles.shopifyDate, { color: theme.textTertiary }]}>
+                  Connected {new Date(shopifyStatus.connectedAt).toLocaleDateString()}
+                </ThemedText>
+              ) : null}
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  Linking.openURL("https://digital-haute.replit.app/shopify");
+                }}
+                style={styles.shopifyDisconnectLink}
+              >
+                <ThemedText style={[styles.shopifyDisconnectText, { color: theme.textTertiary }]}>
+                  Disconnect
+                </ThemedText>
+              </Pressable>
+            </View>
+          ) : (
+            <View>
+              <ThemedText style={[styles.shopifyDescription, { color: theme.textSecondary }]}>
+                Connect your Shopify store to export products directly from the app.
+              </ThemedText>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.shopifyConnectButton,
+                  { backgroundColor: BrandColors.gold, opacity: pressed ? 0.9 : 1 },
+                ]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  Linking.openURL("https://digital-haute.replit.app/shopify");
+                }}
+              >
+                <Feather name="shopping-bag" size={18} color="#fff" />
+                <ThemedText style={styles.shopifyConnectButtonText}>Connect Store</ThemedText>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         <Pressable
@@ -346,6 +428,59 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  shopifyLoadingContainer: {
+    paddingVertical: Spacing.lg,
+    alignItems: "center",
+  },
+  shopifyConnectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xs,
+  },
+  shopifyStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: Spacing.sm,
+  },
+  shopifyConnectedText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#34a853",
+  },
+  shopifyDomain: {
+    fontSize: 14,
+    marginBottom: Spacing.xs,
+  },
+  shopifyDate: {
+    fontSize: 12,
+    marginBottom: Spacing.md,
+  },
+  shopifyDisconnectLink: {
+    paddingVertical: Spacing.xs,
+  },
+  shopifyDisconnectText: {
+    fontSize: 13,
+    textDecorationLine: "underline",
+  },
+  shopifyDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+  },
+  shopifyConnectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+  },
+  shopifyConnectButtonText: {
+    color: "#fff",
+    fontSize: 15,
     fontWeight: "600",
   },
 });
