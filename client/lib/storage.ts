@@ -1,9 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Product, Vendor, Budget } from "@/types";
+import { Product, Vendor, Budget, AppSettings } from "@/types";
 
 const PRODUCTS_KEY = "@digitalhaute/products";
 const VENDORS_KEY = "@digitalhaute/vendors";
 const BUDGETS_KEY = "@digitalhaute/budgets";
+const SETTINGS_KEY = "@digitalhaute/settings";
+
+const DEFAULT_SETTINGS: AppSettings = {
+  markupMultiplier: 2.5,
+  roundUpPrices: false,
+};
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -189,6 +195,27 @@ export const BudgetStorage = {
     }
     
     await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+  },
+};
+
+export const SettingsStorage = {
+  async get(): Promise<AppSettings> {
+    try {
+      const data = await AsyncStorage.getItem(SETTINGS_KEY);
+      return data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
+    } catch (error) {
+      console.error("Error getting settings:", error);
+      return DEFAULT_SETTINGS;
+    }
+  },
+
+  async save(settings: AppSettings): Promise<void> {
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  },
+
+  calculateRetailPrice(wholesalePrice: number, settings: AppSettings): number {
+    const rawPrice = wholesalePrice * settings.markupMultiplier;
+    return settings.roundUpPrices ? Math.ceil(rawPrice) : Math.round(rawPrice * 100) / 100;
   },
 };
 

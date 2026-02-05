@@ -94,3 +94,8 @@ export const STATUS_LABELS: Record<ProductStatus, string> = {
   received: 'Received',
   cancelled: 'Cancelled',
 };
+
+export interface AppSettings {
+  markupMultiplier: number;
+  roundUpPrices: boolean;
+}

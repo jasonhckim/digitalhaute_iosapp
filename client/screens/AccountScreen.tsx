@@ -2,12 +2,15 @@ import React from "react";
 import { View, StyleSheet, ScrollView, Pressable, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
+import { AccountStackParamList } from "@/navigation/AccountStackNavigator";
 
 interface MenuItemProps {
   icon: keyof typeof Feather.glyphMap;
@@ -48,7 +51,10 @@ function MenuItem({ icon, label, onPress, danger }: MenuItemProps) {
   );
 }
 
+type AccountScreenNavProp = NativeStackNavigationProp<AccountStackParamList, "Account">;
+
 export default function AccountScreen() {
+  const navigation = useNavigation<AccountScreenNavProp>();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
@@ -77,6 +83,7 @@ export default function AccountScreen() {
       </View>
 
       <View style={styles.menuSection}>
+        <MenuItem icon="settings" label="Settings" onPress={() => navigation.navigate("Settings")} />
         <MenuItem icon="users" label="Team Members" />
         <MenuItem icon="credit-card" label="Billing & Plan" />
         <MenuItem icon="bell" label="Notifications" />
