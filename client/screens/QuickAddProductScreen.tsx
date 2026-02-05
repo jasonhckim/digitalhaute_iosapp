@@ -120,17 +120,18 @@ export default function QuickAddProductScreen() {
     VendorStorage.getAll().then(setVendors);
   }, []);
 
-  const takePhoto = async (includeBase64 = false): Promise<{ uri: string; base64?: string } | null> => {
+  const takePhoto = async (forLabel = false): Promise<{ uri: string; base64?: string } | null> => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
       Alert.alert("Permission needed", "Please allow camera access to take photos.");
       return null;
     }
 
+    // Lower quality for label scan (just need text), higher for product display
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: false,
-      quality: 0.8,
-      base64: includeBase64,
+      quality: forLabel ? 0.5 : 0.8,
+      base64: forLabel,
     });
 
     if (!result.canceled && result.assets[0]) {
