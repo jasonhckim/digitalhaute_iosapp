@@ -11,9 +11,12 @@ import { Product } from "@/types";
 interface ProductCardProps {
   product: Product;
   onPress?: () => void;
+  onLongPress?: () => void;
+  isSelected?: boolean;
+  selectionMode?: boolean;
 }
 
-export function ProductCard({ product, onPress }: ProductCardProps) {
+export function ProductCard({ product, onPress, onLongPress, isSelected, selectionMode }: ProductCardProps) {
   const { theme } = useTheme();
 
   const formatCurrency = (value: number) => {
@@ -34,12 +37,25 @@ export function ProductCard({ product, onPress }: ProductCardProps) {
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        { backgroundColor: theme.backgroundRoot, opacity: pressed ? 0.95 : 1 },
+        { 
+          backgroundColor: theme.backgroundRoot, 
+          opacity: pressed ? 0.95 : 1,
+          borderWidth: isSelected ? 2 : 0,
+          borderColor: isSelected ? BrandColors.gold : 'transparent',
+        },
         Shadows.card,
       ]}
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       <View style={styles.content}>
+        {selectionMode ? (
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+            {isSelected ? (
+              <Feather name="check" size={16} color="#fff" />
+            ) : null}
+          </View>
+        ) : null}
         {product.imageUri ? (
           <Image source={{ uri: product.imageUri }} style={styles.image} />
         ) : (
@@ -172,5 +188,18 @@ const styles = StyleSheet.create({
   deliveryText: {
     fontSize: 11,
     marginLeft: 4,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: BrandColors.gold,
+    marginRight: Spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checkboxSelected: {
+    backgroundColor: BrandColors.gold,
   },
 });
