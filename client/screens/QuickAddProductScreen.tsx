@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -30,7 +30,7 @@ import { getApiUrl } from "@/lib/query-client";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Step = "setup" | "product_photo" | "label_photo" | "scanning" | "review";
+type Step = "setup" | "label_photo" | "product_photo" | "processing" | "review";
 
 interface ExtractedData {
   styleName?: string;
@@ -61,6 +61,8 @@ export default function QuickAddProductScreen() {
 
   const [productImageUri, setProductImageUri] = useState<string | undefined>();
   const [labelImageUri, setLabelImageUri] = useState<string | undefined>();
+  const [isScanComplete, setIsScanComplete] = useState(false);
+  const scanPromiseRef = useRef<Promise<ExtractedData | null> | null>(null);
 
   const [name, setName] = useState("");
   const [styleNumber, setStyleNumber] = useState("");
@@ -151,9 +153,25 @@ export default function QuickAddProductScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Pre-fill vendor and season for the product
     setVendorId(sessionVendorId);
     setSeason(sessionSeason);
+    setStep("label_photo");
+  };
+
+  const handleTakeLabelPhoto = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const result = await takePhoto(true);
+    if (result) {
+      setLabelImageUri(result.uri);
+      setIsScanComplete(false);
+      scanPromiseRef.current = scanLabelInBackground(result.base64);
+      setStep("product_photo");
+    }
+  };
+
+  const handleSkipLabel = () => {
+    scanPromiseRef.current = null;
+    setIsScanComplete(true);
     setStep("product_photo");
   };
 
@@ -162,36 +180,33 @@ export default function QuickAddProductScreen() {
     const result = await takePhoto(false);
     if (result) {
       setProductImageUri(result.uri);
-      setStep("label_photo");
+      await finishAndShowReview();
     }
   };
 
-  const handleTakeLabelPhoto = async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const result = await takePhoto(true);
-    if (result) {
-      setLabelImageUri(result.uri);
-      await scanLabel(result.base64);
-    }
+  const handleSkipProductPhoto = async () => {
+    await finishAndShowReview();
   };
 
-  const handleSkipLabel = () => {
+  const finishAndShowReview = async () => {
+    if (scanPromiseRef.current && !isScanComplete) {
+      setStep("processing");
+      try {
+        const extractedData = await scanPromiseRef.current;
+        if (extractedData) {
+          applyExtractedData(extractedData);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        }
+      } catch (error) {
+        console.error("Error in background scan:", error);
+      }
+      setIsScanComplete(true);
+    }
     setStep("review");
   };
 
-  const scanLabel = async (base64Data?: string) => {
-    setStep("scanning");
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    if (!base64Data) {
-      Alert.alert(
-        "Scan Failed",
-        "Could not capture the image. You can still enter the details manually.",
-        [{ text: "OK" }]
-      );
-      setStep("review");
-      return;
-    }
+  const scanLabelInBackground = async (base64Data?: string): Promise<ExtractedData | null> => {
+    if (!base64Data) return null;
 
     try {
       const apiUrl = getApiUrl();
@@ -208,20 +223,14 @@ export default function QuickAddProductScreen() {
       const result = await response.json();
       
       if (result.success && result.data) {
-        applyExtractedData(result.data);
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        return result.data;
       }
     } catch (error) {
       console.error("Error scanning label:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(
-        "Scan Failed",
-        "Could not read the label. You can still enter the details manually.",
-        [{ text: "OK" }]
-      );
     }
 
-    setStep("review");
+    return null;
   };
 
   const applyExtractedData = (data: ExtractedData) => {
@@ -368,33 +377,6 @@ export default function QuickAddProductScreen() {
     );
   }
 
-  if (step === "product_photo") {
-    return (
-      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
-        <View style={styles.stepContainer}>
-          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
-            <Feather name="briefcase" size={14} color={BrandColors.gold} />
-            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
-              {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
-            </ThemedText>
-          </View>
-          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
-            <Feather name="camera" size={48} color={BrandColors.gold} />
-          </View>
-          <ThemedText style={[styles.stepTitle, { color: theme.text }]}>
-            Step 1: Product Photo
-          </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
-            Take a photo of the product to save with your order
-          </ThemedText>
-          <Button onPress={handleTakeProductPhoto} style={styles.actionButton}>
-            Take Product Photo
-          </Button>
-        </View>
-      </ThemedView>
-    );
-  }
-
   if (step === "label_photo") {
     return (
       <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
@@ -405,14 +387,11 @@ export default function QuickAddProductScreen() {
               {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
-          {productImageUri ? (
-            <Image source={{ uri: productImageUri }} style={styles.previewThumb} />
-          ) : null}
           <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
             <Feather name="tag" size={48} color={BrandColors.gold} />
           </View>
           <ThemedText style={[styles.stepTitle, { color: theme.text }]}>
-            Step 2: Scan Label
+            Step 1: Scan Label
           </ThemedText>
           <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
             Take a photo of the hang tag or label to auto-fill product details
@@ -430,7 +409,47 @@ export default function QuickAddProductScreen() {
     );
   }
 
-  if (step === "scanning") {
+  if (step === "product_photo") {
+    return (
+      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+        <View style={styles.stepContainer}>
+          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+            <Feather name="briefcase" size={14} color={BrandColors.gold} />
+            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+              {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
+            </ThemedText>
+          </View>
+          {labelImageUri ? (
+            <View style={styles.processingBadge}>
+              <ActivityIndicator size="small" color={BrandColors.gold} />
+              <ThemedText style={[styles.processingText, { color: BrandColors.gold }]}>
+                Extracting label info...
+              </ThemedText>
+            </View>
+          ) : null}
+          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
+            <Feather name="camera" size={48} color={BrandColors.gold} />
+          </View>
+          <ThemedText style={[styles.stepTitle, { color: theme.text }]}>
+            Step 2: Product Photo
+          </ThemedText>
+          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
+            Take a photo of the product to save with your order
+          </ThemedText>
+          <Button onPress={handleTakeProductPhoto} style={styles.actionButton}>
+            Take Product Photo
+          </Button>
+          <Pressable onPress={handleSkipProductPhoto} style={styles.skipButton}>
+            <ThemedText style={[styles.skipText, { color: theme.textSecondary }]}>
+              Skip product photo
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    );
+  }
+
+  if (step === "processing") {
     return (
       <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
         <View style={styles.stepContainer}>
@@ -447,13 +466,10 @@ export default function QuickAddProductScreen() {
             <ActivityIndicator size="large" color={BrandColors.gold} />
           </View>
           <ThemedText style={[styles.stepTitle, { color: theme.text, marginTop: Spacing.xl }]}>
-            Reading Label...
+            Finishing Up...
           </ThemedText>
           <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
-            AI is extracting style number, price, colors, and more
-          </ThemedText>
-          <ThemedText style={[styles.scanningHint, { color: theme.textSecondary }]}>
-            This typically takes 5-10 seconds
+            Almost there! Extracting product details from label
           </ThemedText>
         </View>
       </ThemedView>
@@ -810,6 +826,20 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.xs,
     marginTop: Spacing.md,
     fontStyle: "italic",
+  },
+  processingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.full,
+    backgroundColor: BrandColors.goldLight,
+    marginBottom: Spacing.lg,
+  },
+  processingText: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "500",
   },
   colorSection: {
     marginBottom: Spacing.lg,
