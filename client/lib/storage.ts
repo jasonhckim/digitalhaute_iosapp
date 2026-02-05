@@ -8,7 +8,7 @@ const SETTINGS_KEY = "@digitalhaute/settings";
 
 const DEFAULT_SETTINGS: AppSettings = {
   markupMultiplier: 2.5,
-  roundUpPrices: false,
+  roundingMode: 'none',
 };
 
 function generateId(): string {
@@ -202,7 +202,17 @@ export const SettingsStorage = {
   async get(): Promise<AppSettings> {
     try {
       const data = await AsyncStorage.getItem(SETTINGS_KEY);
-      return data ? { ...DEFAULT_SETTINGS, ...JSON.parse(data) } : DEFAULT_SETTINGS;
+      if (!data) return DEFAULT_SETTINGS;
+      
+      const parsed = JSON.parse(data);
+      
+      // Migrate old roundUpPrices boolean to new roundingMode
+      if ('roundUpPrices' in parsed && !('roundingMode' in parsed)) {
+        parsed.roundingMode = parsed.roundUpPrices ? 'up' : 'none';
+        delete parsed.roundUpPrices;
+      }
+      
+      return { ...DEFAULT_SETTINGS, ...parsed };
     } catch (error) {
       console.error("Error getting settings:", error);
       return DEFAULT_SETTINGS;
@@ -215,7 +225,16 @@ export const SettingsStorage = {
 
   calculateRetailPrice(wholesalePrice: number, settings: AppSettings): number {
     const rawPrice = wholesalePrice * settings.markupMultiplier;
-    return settings.roundUpPrices ? Math.ceil(rawPrice) : Math.round(rawPrice * 100) / 100;
+    
+    switch (settings.roundingMode) {
+      case 'up':
+        return Math.ceil(rawPrice);
+      case 'even':
+        const rounded = Math.ceil(rawPrice);
+        return rounded % 2 === 0 ? rounded : rounded + 1;
+      default:
+        return Math.round(rawPrice * 100) / 100;
+    }
   },
 };
 

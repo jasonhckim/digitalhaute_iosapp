@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TextInput,
   Pressable,
-  Switch,
   ActivityIndicator,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
@@ -18,7 +17,7 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { SettingsStorage } from "@/lib/storage";
-import { AppSettings } from "@/types";
+import { AppSettings, RoundingMode } from "@/types";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
 
 export default function SettingsScreen() {
@@ -57,18 +56,35 @@ export default function SettingsScreen() {
     navigation.goBack();
   };
 
-  const toggleRoundUp = () => {
+  const setRoundingMode = (mode: RoundingMode) => {
     if (!settings) return;
     Haptics.selectionAsync();
-    setSettings({ ...settings, roundUpPrices: !settings.roundUpPrices });
+    setSettings({ ...settings, roundingMode: mode });
   };
 
   const exampleWholesale = 14.97;
   const multiplier = parseFloat(markupText) || 0;
   const rawRetail = exampleWholesale * multiplier;
-  const exampleRetail = settings?.roundUpPrices
-    ? Math.ceil(rawRetail)
-    : Math.round(rawRetail * 100) / 100;
+  
+  const calculatePreviewPrice = (): number => {
+    if (!settings) return rawRetail;
+    switch (settings.roundingMode) {
+      case 'up':
+        return Math.ceil(rawRetail);
+      case 'even':
+        const rounded = Math.ceil(rawRetail);
+        return rounded % 2 === 0 ? rounded : rounded + 1;
+      default:
+        return Math.round(rawRetail * 100) / 100;
+    }
+  };
+  const exampleRetail = calculatePreviewPrice();
+
+  const roundingOptions: { mode: RoundingMode; label: string; hint: string }[] = [
+    { mode: 'none', label: 'No Rounding', hint: '$41.92 stays $41.92' },
+    { mode: 'up', label: 'Round Up', hint: '$41.92 becomes $42' },
+    { mode: 'even', label: 'Round to Even', hint: '$41.92 becomes $42, $43 becomes $44' },
+  ];
 
   if (!settings) {
     return (
@@ -117,20 +133,36 @@ export default function SettingsScreen() {
 
           <View style={styles.divider} />
 
-          <Pressable style={styles.toggleRow} onPress={toggleRoundUp}>
-            <View style={styles.toggleInfo}>
-              <ThemedText style={styles.toggleLabel}>Round Up Prices</ThemedText>
-              <ThemedText style={[styles.toggleHint, { color: theme.textSecondary }]}>
-                Round retail prices to the next whole dollar
-              </ThemedText>
-            </View>
-            <Switch
-              value={settings.roundUpPrices}
-              onValueChange={toggleRoundUp}
-              trackColor={{ false: theme.border, true: BrandColors.gold }}
-              thumbColor="#fff"
-            />
-          </Pressable>
+          <ThemedText style={[styles.label, { color: theme.textSecondary }]}>
+            Price Rounding
+          </ThemedText>
+          <View style={styles.roundingOptions}>
+            {roundingOptions.map((option) => (
+              <Pressable
+                key={option.mode}
+                style={[
+                  styles.roundingOption,
+                  { 
+                    borderColor: settings.roundingMode === option.mode ? BrandColors.gold : theme.border,
+                    backgroundColor: settings.roundingMode === option.mode ? `${BrandColors.gold}10` : 'transparent',
+                  },
+                ]}
+                onPress={() => setRoundingMode(option.mode)}
+              >
+                <View style={styles.radioOuter}>
+                  {settings.roundingMode === option.mode ? (
+                    <View style={[styles.radioInner, { backgroundColor: BrandColors.gold }]} />
+                  ) : null}
+                </View>
+                <View style={styles.roundingOptionText}>
+                  <ThemedText style={styles.roundingOptionLabel}>{option.label}</ThemedText>
+                  <ThemedText style={[styles.roundingOptionHint, { color: theme.textSecondary }]}>
+                    {option.hint}
+                  </ThemedText>
+                </View>
+              </Pressable>
+            ))}
+          </View>
         </View>
 
         <View style={[styles.previewCard, { backgroundColor: `${BrandColors.gold}10` }]}>
@@ -242,22 +274,41 @@ const styles = StyleSheet.create({
     backgroundColor: "#eee",
     marginVertical: Spacing.xl,
   },
-  toggleRow: {
+  roundingOptions: {
+    gap: Spacing.sm,
+  },
+  roundingOption: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
   },
-  toggleInfo: {
-    flex: 1,
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: BrandColors.gold,
+    alignItems: "center",
+    justifyContent: "center",
     marginRight: Spacing.md,
   },
-  toggleLabel: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 2,
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  toggleHint: {
-    fontSize: 13,
+  roundingOptionText: {
+    flex: 1,
+  },
+  roundingOptionLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+  },
+  roundingOptionHint: {
+    fontSize: 12,
+    marginTop: 2,
   },
   previewCard: {
     padding: Spacing.lg,

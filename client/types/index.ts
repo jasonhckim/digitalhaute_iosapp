@@ -95,7 +95,9 @@ export const STATUS_LABELS: Record<ProductStatus, string> = {
   cancelled: 'Cancelled',
 };
 
+export type RoundingMode = 'none' | 'up' | 'even';
+
 export interface AppSettings {
   markupMultiplier: number;
-  roundUpPrices: boolean;
+  roundingMode: RoundingMode;
 }
