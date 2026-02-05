@@ -397,7 +397,7 @@ export default function ProductsScreen() {
       />
 
       {selectionMode ? (
-        <View style={[styles.exportBar, { paddingBottom: insets.bottom + Spacing.md }]}>
+        <View style={[styles.exportBar, { paddingBottom: tabBarHeight + Spacing.md }]}>
           <Button
             onPress={handleExport}
             style={styles.exportButton}
