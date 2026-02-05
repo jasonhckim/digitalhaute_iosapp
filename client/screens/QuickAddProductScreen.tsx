@@ -23,8 +23,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, BrandColors, Typography } from "@/constants/theme";
-import { ProductStorage, VendorStorage } from "@/lib/storage";
-import { Vendor, CATEGORIES, SEASONS, ProductStatus, PackRatio } from "@/types";
+import { ProductStorage, VendorStorage, SettingsStorage } from "@/lib/storage";
+import { Vendor, CATEGORIES, SEASONS, ProductStatus, PackRatio, AppSettings, RoundingMode } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getApiUrl } from "@/lib/query-client";
 
@@ -53,6 +53,7 @@ export default function QuickAddProductScreen() {
 
   const [step, setStep] = useState<Step>("setup");
   const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Session settings (pre-selected before scanning)
@@ -118,7 +119,30 @@ export default function QuickAddProductScreen() {
 
   useEffect(() => {
     VendorStorage.getAll().then(setVendors);
+    SettingsStorage.get().then(setSettings);
   }, []);
+
+  const calculateRetailPrice = (wholesale: number): number => {
+    if (!settings) return wholesale * 2.5;
+    const raw = wholesale * settings.markupMultiplier;
+    switch (settings.roundingMode) {
+      case 'up':
+        return Math.ceil(raw);
+      case 'even':
+        const rounded = Math.ceil(raw);
+        return rounded % 2 === 0 ? rounded : rounded + 1;
+      default:
+        return Math.round(raw * 100) / 100;
+    }
+  };
+
+  useEffect(() => {
+    const wholesale = parseFloat(wholesalePrice);
+    if (!isNaN(wholesale) && wholesale > 0) {
+      const calculated = calculateRetailPrice(wholesale);
+      setRetailPrice(calculated.toString());
+    }
+  }, [wholesalePrice, settings]);
 
   const handleStartSession = () => {
     if (!sessionVendorId) {
@@ -546,7 +570,7 @@ export default function QuickAddProductScreen() {
         </View>
         <View style={styles.halfInput}>
           <Input
-            label="Retail Price"
+            label={`Retail Price (${settings?.markupMultiplier || 2.5}x)`}
             placeholder="0.00"
             value={retailPrice}
             onChangeText={setRetailPrice}
