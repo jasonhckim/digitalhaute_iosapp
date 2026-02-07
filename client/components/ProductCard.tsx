@@ -16,7 +16,13 @@ interface ProductCardProps {
   selectionMode?: boolean;
 }
 
-export function ProductCard({ product, onPress, onLongPress, isSelected, selectionMode }: ProductCardProps) {
+export function ProductCard({
+  product,
+  onPress,
+  onLongPress,
+  isSelected,
+  selectionMode,
+}: ProductCardProps) {
   const { theme } = useTheme();
 
   const formatCurrency = (value: number) => {
@@ -30,18 +36,21 @@ export function ProductCard({ product, onPress, onLongPress, isSelected, selecti
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric",
+    });
   };
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
-        { 
-          backgroundColor: theme.backgroundRoot, 
+        {
+          backgroundColor: theme.backgroundRoot,
           opacity: pressed ? 0.95 : 1,
           borderWidth: isSelected ? 2 : 0,
-          borderColor: isSelected ? BrandColors.gold : 'transparent',
+          borderColor: isSelected ? BrandColors.gold : "transparent",
         },
         Shadows.card,
       ]}
@@ -50,7 +59,9 @@ export function ProductCard({ product, onPress, onLongPress, isSelected, selecti
     >
       <View style={styles.content}>
         {selectionMode ? (
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+          <View
+            style={[styles.checkbox, isSelected && styles.checkboxSelected]}
+          >
             {isSelected ? (
               <Feather name="check" size={16} color="#fff" />
             ) : null}
@@ -59,47 +70,68 @@ export function ProductCard({ product, onPress, onLongPress, isSelected, selecti
         {product.imageUri ? (
           <Image source={{ uri: product.imageUri }} style={styles.image} />
         ) : (
-          <View style={[styles.imagePlaceholder, { backgroundColor: theme.backgroundSecondary }]}>
+          <View
+            style={[
+              styles.imagePlaceholder,
+              { backgroundColor: theme.backgroundSecondary },
+            ]}
+          >
             <Feather name="image" size={24} color={theme.textTertiary} />
           </View>
         )}
-        
+
         <View style={styles.details}>
           <ThemedText style={styles.name} numberOfLines={1}>
             {product.name}
           </ThemedText>
-          
-          <ThemedText style={[styles.vendor, { color: theme.textSecondary }]} numberOfLines={1}>
+
+          <ThemedText
+            style={[styles.vendor, { color: theme.textSecondary }]}
+            numberOfLines={1}
+          >
             {product.vendorName}
           </ThemedText>
-          
+
           <View style={styles.metaRow}>
-            <ThemedText style={[styles.styleNumber, { color: theme.textTertiary }]}>
+            <ThemedText
+              style={[styles.styleNumber, { color: theme.textTertiary }]}
+            >
               #{product.styleNumber}
             </ThemedText>
-            <View style={[styles.categoryBadge, { backgroundColor: `${BrandColors.gold}15` }]}>
-              <ThemedText style={[styles.categoryText, { color: BrandColors.gold }]}>
+            <View
+              style={[
+                styles.categoryBadge,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
+            >
+              <ThemedText
+                style={[styles.categoryText, { color: BrandColors.gold }]}
+              >
                 {product.category}
               </ThemedText>
             </View>
           </View>
-          
+
           <View style={styles.bottomRow}>
             <View style={styles.priceContainer}>
               <ThemedText style={[styles.price, { color: BrandColors.gold }]}>
                 {formatCurrency(product.wholesalePrice)}
               </ThemedText>
-              <ThemedText style={[styles.quantity, { color: theme.textTertiary }]}>
+              <ThemedText
+                style={[styles.quantity, { color: theme.textTertiary }]}
+              >
                 x{product.quantity}
               </ThemedText>
             </View>
-            
+
             <StatusBadge status={product.status} />
           </View>
-          
+
           <View style={styles.deliveryRow}>
             <Feather name="calendar" size={12} color={theme.textTertiary} />
-            <ThemedText style={[styles.deliveryText, { color: theme.textTertiary }]}>
+            <ThemedText
+              style={[styles.deliveryText, { color: theme.textTertiary }]}
+            >
               {formatDate(product.deliveryDate)}
             </ThemedText>
           </View>

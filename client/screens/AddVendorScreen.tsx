@@ -11,7 +11,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, Typography, BrandColors, BorderRadius } from "@/constants/theme";
+import {
+  Spacing,
+  Typography,
+  BrandColors,
+  BorderRadius,
+} from "@/constants/theme";
 import { VendorStorage } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { PackRatio } from "@/types";
@@ -37,9 +42,16 @@ export default function AddVendorScreen() {
 
   const parsePackRatio = (): PackRatio | undefined => {
     if (!packRatioString.trim()) return undefined;
-    const sizes = packSizesString.split(",").map(s => s.trim()).filter(Boolean);
-    const quantities = packRatioString.split("-").map(q => parseInt(q.trim(), 10)).filter(n => !isNaN(n));
-    if (sizes.length !== quantities.length || sizes.length === 0) return undefined;
+    const sizes = packSizesString
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const quantities = packRatioString
+      .split("-")
+      .map((q) => parseInt(q.trim(), 10))
+      .filter((n) => !isNaN(n));
+    if (sizes.length !== quantities.length || sizes.length === 0)
+      return undefined;
     return { sizes, quantities };
   };
 
@@ -146,7 +158,9 @@ export default function AddVendorScreen() {
         <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>
           Pack Ratio (Optional)
         </ThemedText>
-        <ThemedText style={[styles.sectionSubtitle, { color: theme.textSecondary }]}>
+        <ThemedText
+          style={[styles.sectionSubtitle, { color: theme.textSecondary }]}
+        >
           If this vendor uses prepacks, enter the size breakdown
         </ThemedText>
       </View>
@@ -171,13 +185,23 @@ export default function AddVendorScreen() {
       </View>
 
       {packRatioString.trim() ? (
-        <View style={[styles.packPreview, { backgroundColor: BrandColors.goldLight }]}>
-          <ThemedText style={[styles.packPreviewText, { color: BrandColors.gold }]}>
+        <View
+          style={[
+            styles.packPreview,
+            { backgroundColor: BrandColors.goldLight },
+          ]}
+        >
+          <ThemedText
+            style={[styles.packPreviewText, { color: BrandColors.gold }]}
+          >
             {parsePackRatio() ? (
               <>
-                {parsePackRatio()?.sizes.map((size, i) => (
-                  `${parsePackRatio()?.quantities[i]} ${size}`
-                )).join(" + ")} = {getTotalUnitsPerPack()} units per pack
+                {parsePackRatio()
+                  ?.sizes.map(
+                    (size, i) => `${parsePackRatio()?.quantities[i]} ${size}`,
+                  )
+                  .join(" + ")}{" "}
+                = {getTotalUnitsPerPack()} units per pack
               </>
             ) : (
               "Enter matching sizes and quantities (e.g., S,M,L with 2-2-2)"

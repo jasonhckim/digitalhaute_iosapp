@@ -62,7 +62,10 @@ export default function AddProductScreen() {
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Permission needed", "Please allow camera access to take photos.");
+      Alert.alert(
+        "Permission needed",
+        "Please allow camera access to take photos.",
+      );
       return;
     }
 
@@ -81,8 +84,10 @@ export default function AddProductScreen() {
     if (!name.trim()) return "Product name is required";
     if (!vendorId) return "Please select a vendor";
     if (!category) return "Please select a category";
-    if (!wholesalePrice || isNaN(parseFloat(wholesalePrice))) return "Valid wholesale price is required";
-    if (!quantity || isNaN(parseInt(quantity))) return "Valid quantity is required";
+    if (!wholesalePrice || isNaN(parseFloat(wholesalePrice)))
+      return "Valid wholesale price is required";
+    if (!quantity || isNaN(parseInt(quantity)))
+      return "Valid quantity is required";
     if (!season) return "Please select a season";
     if (!deliveryDate) return "Delivery date is required";
     return null;
@@ -100,10 +105,11 @@ export default function AddProductScreen() {
 
     try {
       const vendor = vendors.find((v) => v.id === vendorId);
-      
+
       await ProductStorage.create({
         name: name.trim(),
-        styleNumber: styleNumber.trim() || `STY-${Date.now().toString(36).toUpperCase()}`,
+        styleNumber:
+          styleNumber.trim() || `STY-${Date.now().toString(36).toUpperCase()}`,
         vendorId,
         vendorName: vendor?.name || "Unknown Vendor",
         category,
@@ -147,7 +153,10 @@ export default function AddProductScreen() {
           <View style={styles.imageContainer}>
             <Image source={{ uri: imageUri }} style={styles.productImage} />
             <Pressable
-              style={[styles.removeImage, { backgroundColor: BrandColors.error }]}
+              style={[
+                styles.removeImage,
+                { backgroundColor: BrandColors.error },
+              ]}
               onPress={() => setImageUri(undefined)}
             >
               <Feather name="x" size={16} color="#FFFFFF" />
@@ -160,7 +169,9 @@ export default function AddProductScreen() {
               onPress={handleTakePhoto}
             >
               <Feather name="camera" size={24} color={BrandColors.gold} />
-              <ThemedText style={[styles.imageButtonText, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.imageButtonText, { color: BrandColors.gold }]}
+              >
                 Take Photo
               </ThemedText>
             </Pressable>
@@ -169,7 +180,9 @@ export default function AddProductScreen() {
               onPress={handlePickImage}
             >
               <Feather name="image" size={24} color={BrandColors.gold} />
-              <ThemedText style={[styles.imageButtonText, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.imageButtonText, { color: BrandColors.gold }]}
+              >
                 Choose Photo
               </ThemedText>
             </Pressable>

@@ -1,5 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { View, StyleSheet, ScrollView, RefreshControl, FlatList } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  RefreshControl,
+  FlatList,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -16,7 +22,12 @@ import { EmptyState } from "@/components/EmptyState";
 import { FABMenu } from "@/components/FABMenu";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors } from "@/constants/theme";
-import { ProductStorage, VendorStorage, BudgetStorage, getDashboardStats } from "@/lib/storage";
+import {
+  ProductStorage,
+  VendorStorage,
+  BudgetStorage,
+  getDashboardStats,
+} from "@/lib/storage";
 import { Product, Vendor, Budget, DashboardStats } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -55,7 +66,7 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   const handleRefresh = async () => {
@@ -175,7 +186,11 @@ export default function DashboardScreen() {
                   {budgets.map((budget) => (
                     <BudgetCard
                       key={budget.id}
-                      title={budget.category ? `${budget.season} - ${budget.category}` : budget.season}
+                      title={
+                        budget.category
+                          ? `${budget.season} - ${budget.category}`
+                          : budget.season
+                      }
                       budget={budget.amount}
                       spent={budget.spent}
                     />
@@ -189,13 +204,19 @@ export default function DashboardScreen() {
                 <SectionHeader
                   title="Recent Products"
                   actionLabel="View All"
-                  onAction={() => navigation.navigate("Main", { screen: "ProductsTab" })}
+                  onAction={() =>
+                    navigation.navigate("Main", { screen: "ProductsTab" })
+                  }
                 />
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
                     product={product}
-                    onPress={() => navigation.navigate("ProductDetail", { productId: product.id })}
+                    onPress={() =>
+                      navigation.navigate("ProductDetail", {
+                        productId: product.id,
+                      })
+                    }
                   />
                 ))}
               </>

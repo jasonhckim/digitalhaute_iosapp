@@ -16,7 +16,7 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
   const { theme } = useTheme();
   const remaining = budget - spent;
   const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
-  
+
   const getProgressColor = () => {
     if (percentage >= 100) return BrandColors.error;
     if (percentage >= 90) return "#F59E0B";
@@ -43,10 +43,12 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
       onPress={onPress}
     >
       <ThemedText style={styles.title}>{title}</ThemedText>
-      
+
       <View style={styles.amounts}>
         <View>
-          <ThemedText style={[styles.amountLabel, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.amountLabel, { color: theme.textTertiary }]}
+          >
             Budget
           </ThemedText>
           <ThemedText style={[styles.amount, { color: BrandColors.gold }]}>
@@ -54,24 +56,38 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
           </ThemedText>
         </View>
         <View>
-          <ThemedText style={[styles.amountLabel, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.amountLabel, { color: theme.textTertiary }]}
+          >
             Spent
           </ThemedText>
-          <ThemedText style={styles.amount}>
-            {formatCurrency(spent)}
-          </ThemedText>
+          <ThemedText style={styles.amount}>{formatCurrency(spent)}</ThemedText>
         </View>
         <View>
-          <ThemedText style={[styles.amountLabel, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.amountLabel, { color: theme.textTertiary }]}
+          >
             Remaining
           </ThemedText>
-          <ThemedText style={[styles.amount, { color: remaining >= 0 ? BrandColors.success : BrandColors.error }]}>
+          <ThemedText
+            style={[
+              styles.amount,
+              {
+                color: remaining >= 0 ? BrandColors.success : BrandColors.error,
+              },
+            ]}
+          >
             {formatCurrency(remaining)}
           </ThemedText>
         </View>
       </View>
 
-      <View style={[styles.progressBackground, { backgroundColor: theme.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.progressBackground,
+          { backgroundColor: theme.backgroundSecondary },
+        ]}
+      >
         <View
           style={[
             styles.progressFill,
@@ -79,7 +95,7 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
           ]}
         />
       </View>
-      
+
       <ThemedText style={[styles.percentage, { color: theme.textTertiary }]}>
         {percentage.toFixed(0)}% used
       </ThemedText>

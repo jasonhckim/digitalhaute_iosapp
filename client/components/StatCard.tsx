@@ -17,7 +17,13 @@ export function StatCard({ icon, label, value, sublabel }: StatCardProps) {
   const { theme } = useTheme();
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.backgroundRoot },
+        Shadows.card,
+      ]}
+    >
       <View style={styles.iconContainer}>
         <Feather name={icon} size={20} color={BrandColors.gold} />
       </View>

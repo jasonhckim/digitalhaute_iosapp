@@ -15,7 +15,12 @@ interface QuickCameraProps {
   title?: string;
 }
 
-export function QuickCamera({ onCapture, onCancel, includeBase64 = false, title }: QuickCameraProps) {
+export function QuickCamera({
+  onCapture,
+  onCancel,
+  includeBase64 = false,
+  title,
+}: QuickCameraProps) {
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
@@ -33,11 +38,19 @@ export function QuickCamera({ onCapture, onCancel, includeBase64 = false, title 
     return (
       <View style={[styles.container, styles.permissionContainer]}>
         <Feather name="camera-off" size={48} color={BrandColors.gold} />
-        <ThemedText style={styles.permissionText}>Camera access is required</ThemedText>
+        <ThemedText style={styles.permissionText}>
+          Camera access is required
+        </ThemedText>
         <Button onPress={requestPermission} style={styles.permissionButton}>
-          <ThemedText style={styles.permissionButtonText}>Enable Camera</ThemedText>
+          <ThemedText style={styles.permissionButtonText}>
+            Enable Camera
+          </ThemedText>
         </Button>
-        <Button onPress={onCancel} variant="secondary" style={styles.cancelButton}>
+        <Button
+          onPress={onCancel}
+          variant="secondary"
+          style={styles.cancelButton}
+        >
           <ThemedText>Cancel</ThemedText>
         </Button>
       </View>
@@ -46,7 +59,7 @@ export function QuickCamera({ onCapture, onCancel, includeBase64 = false, title 
 
   const handleCapture = async () => {
     if (!cameraRef.current || isCapturing) return;
-    
+
     setIsCapturing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -70,11 +83,7 @@ export function QuickCamera({ onCapture, onCancel, includeBase64 = false, title 
 
   return (
     <View style={styles.container}>
-      <CameraView
-        ref={cameraRef}
-        style={styles.camera}
-        facing="back"
-      >
+      <CameraView ref={cameraRef} style={styles.camera} facing="back">
         <View style={[styles.overlay, { paddingTop: insets.top + Spacing.md }]}>
           <View style={styles.header}>
             <Pressable onPress={onCancel} style={styles.closeButton}>
@@ -87,7 +96,12 @@ export function QuickCamera({ onCapture, onCancel, includeBase64 = false, title 
           </View>
         </View>
 
-        <View style={[styles.controls, { paddingBottom: insets.bottom + Spacing.xl }]}>
+        <View
+          style={[
+            styles.controls,
+            { paddingBottom: insets.bottom + Spacing.xl },
+          ]}
+        >
           <View style={styles.captureContainer}>
             <Pressable
               onPress={handleCapture}

@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Alert, Linking, Pressable } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Alert,
+  Linking,
+  Pressable,
+} from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -66,7 +73,7 @@ export default function VendorDetailScreen() {
             navigation.goBack();
           },
         },
-      ]
+      ],
     );
   };
 
@@ -97,7 +104,9 @@ export default function VendorDetailScreen() {
 
   if (isLoading || !vendor) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      >
         <View style={[styles.loadingContainer, { paddingTop: headerHeight }]}>
           <ThemedText>Loading...</ThemedText>
         </View>
@@ -108,7 +117,7 @@ export default function VendorDetailScreen() {
   const activeProducts = products.filter((p) => p.status !== "cancelled");
   const totalSpend = activeProducts.reduce(
     (sum, p) => sum + p.wholesalePrice * p.quantity,
-    0
+    0,
   );
 
   return (
@@ -121,7 +130,9 @@ export default function VendorDetailScreen() {
       }}
     >
       <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: `${BrandColors.gold}15` }]}>
+        <View
+          style={[styles.avatar, { backgroundColor: `${BrandColors.gold}15` }]}
+        >
           <ThemedText style={[styles.avatarText, { color: BrandColors.gold }]}>
             {vendor.name.charAt(0).toUpperCase()}
           </ThemedText>
@@ -130,89 +141,149 @@ export default function VendorDetailScreen() {
       </View>
 
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
           <ThemedText style={[styles.statValue, { color: BrandColors.gold }]}>
             {activeProducts.length}
           </ThemedText>
-          <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.statLabel, { color: theme.textSecondary }]}
+          >
             Products
           </ThemedText>
         </View>
-        <View style={[styles.statCard, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+        <View
+          style={[
+            styles.statCard,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
           <ThemedText style={[styles.statValue, { color: BrandColors.gold }]}>
             {formatCurrency(totalSpend)}
           </ThemedText>
-          <ThemedText style={[styles.statLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.statLabel, { color: theme.textSecondary }]}
+          >
             Total Spend
           </ThemedText>
         </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundRoot },
+          Shadows.card,
+        ]}
+      >
         {vendor.contactName ? (
           <View style={styles.contactRow}>
             <Feather name="user" size={18} color={theme.textSecondary} />
-            <ThemedText style={styles.contactText}>{vendor.contactName}</ThemedText>
+            <ThemedText style={styles.contactText}>
+              {vendor.contactName}
+            </ThemedText>
           </View>
         ) : null}
-        
+
         {vendor.email ? (
-          <Pressable style={styles.contactRow} onPress={() => handleContact("email")}>
+          <Pressable
+            style={styles.contactRow}
+            onPress={() => handleContact("email")}
+          >
             <Feather name="mail" size={18} color={BrandColors.gold} />
-            <ThemedText style={[styles.contactText, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.contactText, { color: BrandColors.gold }]}
+            >
               {vendor.email}
             </ThemedText>
           </Pressable>
         ) : null}
-        
+
         {vendor.phone ? (
-          <Pressable style={styles.contactRow} onPress={() => handleContact("phone")}>
+          <Pressable
+            style={styles.contactRow}
+            onPress={() => handleContact("phone")}
+          >
             <Feather name="phone" size={18} color={BrandColors.gold} />
-            <ThemedText style={[styles.contactText, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.contactText, { color: BrandColors.gold }]}
+            >
               {vendor.phone}
             </ThemedText>
           </Pressable>
         ) : null}
-        
+
         {vendor.website ? (
-          <Pressable style={styles.contactRow} onPress={() => handleContact("website")}>
+          <Pressable
+            style={styles.contactRow}
+            onPress={() => handleContact("website")}
+          >
             <Feather name="globe" size={18} color={BrandColors.gold} />
-            <ThemedText style={[styles.contactText, { color: BrandColors.gold }]} numberOfLines={1}>
+            <ThemedText
+              style={[styles.contactText, { color: BrandColors.gold }]}
+              numberOfLines={1}
+            >
               {vendor.website}
             </ThemedText>
           </Pressable>
         ) : null}
-        
+
         {vendor.paymentTerms ? (
           <View style={styles.contactRow}>
             <Feather name="credit-card" size={18} color={theme.textSecondary} />
-            <ThemedText style={styles.contactText}>{vendor.paymentTerms}</ThemedText>
+            <ThemedText style={styles.contactText}>
+              {vendor.paymentTerms}
+            </ThemedText>
           </View>
         ) : null}
-        
+
         {vendor.packRatio ? (
-          <View style={[styles.packRatioRow, { backgroundColor: `${BrandColors.gold}10` }]}>
+          <View
+            style={[
+              styles.packRatioRow,
+              { backgroundColor: `${BrandColors.gold}10` },
+            ]}
+          >
             <View style={styles.packRatioHeader}>
               <Feather name="package" size={18} color={BrandColors.gold} />
-              <ThemedText style={[styles.packRatioLabel, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.packRatioLabel, { color: BrandColors.gold }]}
+              >
                 Pack Ratio
               </ThemedText>
             </View>
             <ThemedText style={[styles.packRatioValue, { color: theme.text }]}>
-              {vendor.packRatio.sizes.map((size, i) => 
-                `${vendor.packRatio!.quantities[i]} ${size}`
-              ).join(" + ")}
+              {vendor.packRatio.sizes
+                .map((size, i) => `${vendor.packRatio!.quantities[i]} ${size}`)
+                .join(" + ")}
             </ThemedText>
-            <ThemedText style={[styles.packRatioTotal, { color: theme.textSecondary }]}>
-              {vendor.packRatio.quantities.reduce((sum, q) => sum + q, 0)} units per pack
+            <ThemedText
+              style={[styles.packRatioTotal, { color: theme.textSecondary }]}
+            >
+              {vendor.packRatio.quantities.reduce((sum, q) => sum + q, 0)} units
+              per pack
             </ThemedText>
           </View>
         ) : null}
       </View>
 
       {vendor.notes ? (
-        <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
-          <ThemedText style={[styles.notesLabel, { color: theme.textSecondary }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
+          <ThemedText
+            style={[styles.notesLabel, { color: theme.textSecondary }]}
+          >
             Notes
           </ThemedText>
           <ThemedText style={styles.notesText}>{vendor.notes}</ThemedText>
@@ -226,13 +297,19 @@ export default function VendorDetailScreen() {
             <ProductCard
               key={product.id}
               product={product}
-              onPress={() => navigation.navigate("ProductDetail", { productId: product.id })}
+              onPress={() =>
+                navigation.navigate("ProductDetail", { productId: product.id })
+              }
             />
           ))}
         </>
       ) : null}
 
-      <Button variant="secondary" onPress={handleDelete} style={styles.deleteButton}>
+      <Button
+        variant="secondary"
+        onPress={handleDelete}
+        style={styles.deleteButton}
+      >
         Delete Vendor
       </Button>
     </ScrollView>

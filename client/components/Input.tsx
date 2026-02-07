@@ -21,16 +21,16 @@ export function Input({ label, error, style, ...props }: InputProps) {
           {label}
         </ThemedText>
       ) : null}
-      
+
       <TextInput
         style={[
           styles.input,
           {
             backgroundColor: theme.backgroundRoot,
-            borderColor: error 
-              ? BrandColors.error 
-              : isFocused 
-                ? BrandColors.gold 
+            borderColor: error
+              ? BrandColors.error
+              : isFocused
+                ? BrandColors.gold
                 : theme.border,
             color: theme.text,
           },
@@ -42,7 +42,7 @@ export function Input({ label, error, style, ...props }: InputProps) {
         selectionColor={BrandColors.gold}
         {...props}
       />
-      
+
       {error ? (
         <ThemedText style={[styles.error, { color: BrandColors.error }]}>
           {error}

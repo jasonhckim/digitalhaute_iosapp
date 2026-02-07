@@ -42,11 +42,7 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
   return (
     <>
       <Pressable
-        style={[
-          styles.fab,
-          { bottom: bottom + Spacing.lg },
-          Shadows.fab,
-        ]}
+        style={[styles.fab, { bottom: bottom + Spacing.lg }, Shadows.fab]}
         onPress={handleOpen}
       >
         <GoldGradient style={styles.gradient}>
@@ -67,16 +63,34 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
                 {items.map((item, index) => (
                   <Pressable
                     key={index}
-                    style={[styles.menuItem, { backgroundColor: theme.backgroundSecondary }]}
+                    style={[
+                      styles.menuItem,
+                      { backgroundColor: theme.backgroundSecondary },
+                    ]}
                     onPress={() => handleItemPress(item)}
                   >
-                    <View style={[styles.iconContainer, { backgroundColor: BrandColors.goldLight }]}>
-                      <Feather name={item.icon} size={20} color={BrandColors.gold} />
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: BrandColors.goldLight },
+                      ]}
+                    >
+                      <Feather
+                        name={item.icon}
+                        size={20}
+                        color={BrandColors.gold}
+                      />
                     </View>
-                    <ThemedText style={[styles.menuLabel, { color: theme.text }]}>
+                    <ThemedText
+                      style={[styles.menuLabel, { color: theme.text }]}
+                    >
                       {item.label}
                     </ThemedText>
-                    <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+                    <Feather
+                      name="chevron-right"
+                      size={20}
+                      color={theme.textSecondary}
+                    />
                   </Pressable>
                 ))}
               </View>
@@ -87,16 +101,34 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
                 {items.map((item, index) => (
                   <Pressable
                     key={index}
-                    style={[styles.menuItem, { backgroundColor: theme.backgroundSecondary }]}
+                    style={[
+                      styles.menuItem,
+                      { backgroundColor: theme.backgroundSecondary },
+                    ]}
                     onPress={() => handleItemPress(item)}
                   >
-                    <View style={[styles.iconContainer, { backgroundColor: BrandColors.goldLight }]}>
-                      <Feather name={item.icon} size={20} color={BrandColors.gold} />
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        { backgroundColor: BrandColors.goldLight },
+                      ]}
+                    >
+                      <Feather
+                        name={item.icon}
+                        size={20}
+                        color={BrandColors.gold}
+                      />
                     </View>
-                    <ThemedText style={[styles.menuLabel, { color: theme.text }]}>
+                    <ThemedText
+                      style={[styles.menuLabel, { color: theme.text }]}
+                    >
                       {item.label}
                     </ThemedText>
-                    <Feather name="chevron-right" size={20} color={theme.textSecondary} />
+                    <Feather
+                      name="chevron-right"
+                      size={20}
+                      color={theme.textSecondary}
+                    />
                   </Pressable>
                 ))}
               </View>

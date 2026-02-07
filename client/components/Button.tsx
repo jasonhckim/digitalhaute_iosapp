@@ -1,5 +1,11 @@
 import React, { ReactNode } from "react";
-import { StyleSheet, Pressable, ViewStyle, StyleProp, View } from "react-native";
+import {
+  StyleSheet,
+  Pressable,
+  ViewStyle,
+  StyleProp,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useAnimatedStyle,
@@ -76,9 +82,7 @@ export function Button({
           end={{ x: 1, y: 1 }}
           style={styles.gradient}
         >
-          <ThemedText style={styles.primaryText}>
-            {children}
-          </ThemedText>
+          <ThemedText style={styles.primaryText}>{children}</ThemedText>
         </LinearGradient>
       </AnimatedPressable>
     );
@@ -94,7 +98,7 @@ export function Button({
         style={[
           styles.button,
           styles.secondaryButton,
-          { 
+          {
             borderColor: BrandColors.gold,
             opacity: disabled ? 0.5 : 1,
           },

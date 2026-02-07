@@ -37,7 +37,8 @@ export default function AddBudgetScreen() {
 
   const validateForm = () => {
     if (!season) return "Please select a season";
-    if (!amount || isNaN(parseFloat(amount))) return "Valid budget amount is required";
+    if (!amount || isNaN(parseFloat(amount)))
+      return "Valid budget amount is required";
     return null;
   };
 

@@ -43,11 +43,11 @@ export default function VendorsScreen() {
 
       const vendorsWithStats: VendorWithStats[] = vendorsData.map((vendor) => {
         const vendorProducts = productsData.filter(
-          (p) => p.vendorId === vendor.id && p.status !== "cancelled"
+          (p) => p.vendorId === vendor.id && p.status !== "cancelled",
         );
         const totalSpend = vendorProducts.reduce(
           (sum, p) => sum + p.wholesalePrice * p.quantity,
-          0
+          0,
         );
         return {
           ...vendor,
@@ -67,7 +67,7 @@ export default function VendorsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   const handleRefresh = async () => {

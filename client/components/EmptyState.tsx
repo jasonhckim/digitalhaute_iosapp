@@ -14,19 +14,25 @@ interface EmptyStateProps {
   onAction?: () => void;
 }
 
-export function EmptyState({ image, title, message, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({
+  image,
+  title,
+  message,
+  actionLabel,
+  onAction,
+}: EmptyStateProps) {
   const { theme } = useTheme();
 
   return (
     <View style={styles.container}>
       <Image source={image} style={styles.image} resizeMode="contain" />
-      
+
       <ThemedText style={styles.title}>{title}</ThemedText>
-      
+
       <ThemedText style={[styles.message, { color: theme.textSecondary }]}>
         {message}
       </ThemedText>
-      
+
       {actionLabel && onAction ? (
         <Button onPress={onAction} style={styles.button}>
           {actionLabel}

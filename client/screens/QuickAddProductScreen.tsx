@@ -22,15 +22,39 @@ import { Button } from "@/components/Button";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, BrandColors, Typography } from "@/constants/theme";
-import { ProductStorage, VendorStorage, SettingsStorage } from "@/lib/storage";
-import { Vendor, CATEGORIES, SEASONS, ProductStatus, PackRatio, AppSettings, RoundingMode } from "@/types";
+import {
+  Spacing,
+  BorderRadius,
+  BrandColors,
+  Typography,
+} from "@/constants/theme";
+import {
+  ProductStorage,
+  VendorStorage,
+  SettingsStorage,
+  calculateRetailPrice,
+} from "@/lib/storage";
+import {
+  Vendor,
+  CATEGORIES,
+  SEASONS,
+  ProductStatus,
+  PackRatio,
+  AppSettings,
+} from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { getApiUrl } from "@/lib/query-client";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Step = "setup" | "label_photo" | "label_camera" | "product_photo" | "product_camera" | "processing" | "review";
+type Step =
+  | "setup"
+  | "label_photo"
+  | "label_camera"
+  | "product_photo"
+  | "product_camera"
+  | "processing"
+  | "review";
 
 interface ExtractedData {
   styleName?: string;
@@ -78,9 +102,11 @@ export default function QuickAddProductScreen() {
   const [colors, setColors] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [sizes, setSizes] = useState("");
-  const [vendorPackRatio, setVendorPackRatio] = useState<PackRatio | undefined>();
+  const [vendorPackRatio, setVendorPackRatio] = useState<
+    PackRatio | undefined
+  >();
 
-  const selectedVendor = vendors.find(v => v.id === vendorId);
+  const selectedVendor = vendors.find((v) => v.id === vendorId);
 
   useEffect(() => {
     if (selectedVendor?.packRatio) {
@@ -94,26 +120,30 @@ export default function QuickAddProductScreen() {
   const getTotalUnitsFromPacks = (): number => {
     if (!vendorPackRatio) return parseInt(quantity, 10) || 0;
     const numPacks = parseInt(packs, 10) || 0;
-    const unitsPerPack = vendorPackRatio.quantities.reduce((sum, q) => sum + q, 0);
+    const unitsPerPack = vendorPackRatio.quantities.reduce(
+      (sum, q) => sum + q,
+      0,
+    );
     return numPacks * unitsPerPack;
   };
 
   const getPackBreakdown = (): string => {
     if (!vendorPackRatio) return "";
     const numPacks = parseInt(packs, 10) || 0;
-    return vendorPackRatio.sizes.map((size, i) => 
-      `${vendorPackRatio.quantities[i] * numPacks} ${size}`
-    ).join(" + ");
+    return vendorPackRatio.sizes
+      .map((size, i) => `${vendorPackRatio.quantities[i] * numPacks} ${size}`)
+      .join(" + ");
   };
 
-  const colorList = colors.split(",").map(c => c.trim()).filter(Boolean);
+  const colorList = colors
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
 
   const toggleColorSelection = (color: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setSelectedColors(prev => 
-      prev.includes(color) 
-        ? prev.filter(c => c !== color)
-        : [...prev, color]
+    setSelectedColors((prev) =>
+      prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color],
     );
   };
 
@@ -122,24 +152,10 @@ export default function QuickAddProductScreen() {
     SettingsStorage.get().then(setSettings);
   }, []);
 
-  const calculateRetailPrice = (wholesale: number): number => {
-    if (!settings) return wholesale * 2.5;
-    const raw = wholesale * settings.markupMultiplier;
-    switch (settings.roundingMode) {
-      case 'up':
-        return Math.ceil(raw);
-      case 'even':
-        const rounded = Math.ceil(raw);
-        return rounded % 2 === 0 ? rounded : rounded + 1;
-      default:
-        return Math.round(raw * 100) / 100;
-    }
-  };
-
   useEffect(() => {
     const wholesale = parseFloat(wholesalePrice);
     if (!isNaN(wholesale) && wholesale > 0) {
-      const calculated = calculateRetailPrice(wholesale);
+      const calculated = calculateRetailPrice(wholesale, settings);
       setRetailPrice(calculated.toString());
     }
   }, [wholesalePrice, settings]);
@@ -208,23 +224,28 @@ export default function QuickAddProductScreen() {
     setStep("review");
   };
 
-  const scanLabelInBackground = async (base64Data?: string): Promise<ExtractedData | null> => {
+  const scanLabelInBackground = async (
+    base64Data?: string,
+  ): Promise<ExtractedData | null> => {
     if (!base64Data) return null;
 
     try {
       const apiUrl = getApiUrl();
-      const response = await fetch(new URL("/api/scan-label", apiUrl).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64Data }),
-      });
+      const response = await fetch(
+        new URL("/api/scan-label", apiUrl).toString(),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageBase64: base64Data }),
+        },
+      );
 
       if (!response.ok) {
         throw new Error("Failed to scan label");
       }
 
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         return result.data;
       }
@@ -241,27 +262,28 @@ export default function QuickAddProductScreen() {
     if (data.styleNumber) setStyleNumber(data.styleNumber);
     if (data.wholesalePrice) setWholesalePrice(data.wholesalePrice.toString());
     if (data.retailPrice) setRetailPrice(data.retailPrice.toString());
-    if (data.colors && data.colors.length > 0) setColors(data.colors.join(", "));
+    if (data.colors && data.colors.length > 0)
+      setColors(data.colors.join(", "));
     if (data.sizes && data.sizes.length > 0) setSizes(data.sizes.join(", "));
     if (data.notes) setNotes(data.notes);
 
     if (data.category) {
       const matchedCategory = CATEGORIES.find(
-        (c) => c.toLowerCase() === data.category?.toLowerCase()
+        (c) => c.toLowerCase() === data.category?.toLowerCase(),
       );
       if (matchedCategory) setCategory(matchedCategory);
     }
 
     if (data.season) {
-      const matchedSeason = SEASONS.find(
-        (s) => s.toLowerCase().includes(data.season?.toLowerCase() || "")
+      const matchedSeason = SEASONS.find((s) =>
+        s.toLowerCase().includes(data.season?.toLowerCase() || ""),
       );
       if (matchedSeason) setSeason(matchedSeason);
     }
 
     if (data.brandName) {
-      const matchedVendor = vendors.find(
-        (v) => v.name.toLowerCase().includes(data.brandName?.toLowerCase() || "")
+      const matchedVendor = vendors.find((v) =>
+        v.name.toLowerCase().includes(data.brandName?.toLowerCase() || ""),
       );
       if (matchedVendor) setVendorId(matchedVendor.id);
     }
@@ -271,8 +293,10 @@ export default function QuickAddProductScreen() {
     if (!styleNumber.trim()) return "Style number is required";
     if (!vendorId) return "Please select a vendor";
     if (!category) return "Please select a category";
-    if (!wholesalePrice || isNaN(parseFloat(wholesalePrice))) return "Valid wholesale price is required";
-    if (!quantity || isNaN(parseInt(quantity))) return "Valid quantity is required";
+    if (!wholesalePrice || isNaN(parseFloat(wholesalePrice)))
+      return "Valid wholesale price is required";
+    if (!quantity || isNaN(parseInt(quantity)))
+      return "Valid quantity is required";
     if (!season) return "Please select a season";
     return null;
   };
@@ -289,9 +313,9 @@ export default function QuickAddProductScreen() {
 
     try {
       const vendor = vendors.find((v) => v.id === vendorId);
-      
-      const finalQuantity = vendorPackRatio 
-        ? getTotalUnitsFromPacks() 
+
+      const finalQuantity = vendorPackRatio
+        ? getTotalUnitsFromPacks()
         : parseInt(quantity, 10);
 
       await ProductStorage.create({
@@ -305,9 +329,15 @@ export default function QuickAddProductScreen() {
         quantity: finalQuantity,
         packs: vendorPackRatio ? parseInt(packs, 10) : undefined,
         packRatio: vendorPackRatio,
-        colors: colors.split(",").map((c) => c.trim()).filter(Boolean),
+        colors: colors
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean),
         selectedColors: selectedColors.length > 0 ? selectedColors : undefined,
-        sizes: sizes.split(",").map((s) => s.trim()).filter(Boolean),
+        sizes: sizes
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
         deliveryDate,
         season,
         notes: notes.trim(),
@@ -333,19 +363,41 @@ export default function QuickAddProductScreen() {
 
   if (step === "setup") {
     return (
-      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+      <ThemedView
+        style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}
+      >
         <KeyboardAwareScrollViewCompat
           contentContainerStyle={styles.setupContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight, alignSelf: "center" }]}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: BrandColors.goldLight, alignSelf: "center" },
+            ]}
+          >
             <Feather name="briefcase" size={48} color={BrandColors.gold} />
           </View>
-          <ThemedText style={[styles.stepTitle, { color: theme.text, textAlign: "center" }]}>
+          <ThemedText
+            style={[
+              styles.stepTitle,
+              { color: theme.text, textAlign: "center" },
+            ]}
+          >
             Start Scanning Session
           </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary, textAlign: "center", marginBottom: Spacing.xl }]}>
-            Select the vendor and season first. These will be applied to all products you scan.
+          <ThemedText
+            style={[
+              styles.stepDescription,
+              {
+                color: theme.textSecondary,
+                textAlign: "center",
+                marginBottom: Spacing.xl,
+              },
+            ]}
+          >
+            Select the vendor and season first. These will be applied to all
+            products you scan.
           </ThemedText>
 
           <Select
@@ -366,8 +418,11 @@ export default function QuickAddProductScreen() {
 
           <View style={styles.sessionInfo}>
             <Feather name="info" size={16} color={theme.textSecondary} />
-            <ThemedText style={[styles.sessionInfoText, { color: theme.textSecondary }]}>
-              You can scan multiple products from this vendor without re-entering this info.
+            <ThemedText
+              style={[styles.sessionInfoText, { color: theme.textSecondary }]}
+            >
+              You can scan multiple products from this vendor without
+              re-entering this info.
             </ThemedText>
           </View>
 
@@ -381,28 +436,46 @@ export default function QuickAddProductScreen() {
 
   if (step === "label_photo") {
     return (
-      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+      <ThemedView
+        style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}
+      >
         <View style={styles.stepContainer}>
-          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+          <View
+            style={[
+              styles.vendorBadge,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
-            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.vendorBadgeText, { color: BrandColors.gold }]}
+            >
               {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
-          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
             <Feather name="tag" size={48} color={BrandColors.gold} />
           </View>
           <ThemedText style={[styles.stepTitle, { color: theme.text }]}>
             Step 1: Scan Label
           </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.stepDescription, { color: theme.textSecondary }]}
+          >
             Take a photo of the hang tag or label to auto-fill product details
           </ThemedText>
           <Button onPress={handleOpenLabelCamera} style={styles.actionButton}>
             Scan Label
           </Button>
           <Pressable onPress={handleSkipLabel} style={styles.skipButton}>
-            <ThemedText style={[styles.skipText, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.skipText, { color: theme.textSecondary }]}
+            >
               Skip and enter manually
             </ThemedText>
           </Pressable>
@@ -424,36 +497,56 @@ export default function QuickAddProductScreen() {
 
   if (step === "product_photo") {
     return (
-      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+      <ThemedView
+        style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}
+      >
         <View style={styles.stepContainer}>
-          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+          <View
+            style={[
+              styles.vendorBadge,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
-            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.vendorBadgeText, { color: BrandColors.gold }]}
+            >
               {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
           {labelImageUri ? (
             <View style={styles.processingBadge}>
               <ActivityIndicator size="small" color={BrandColors.gold} />
-              <ThemedText style={[styles.processingText, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.processingText, { color: BrandColors.gold }]}
+              >
                 Extracting label info...
               </ThemedText>
             </View>
           ) : null}
-          <View style={[styles.iconCircle, { backgroundColor: BrandColors.goldLight }]}>
+          <View
+            style={[
+              styles.iconCircle,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
             <Feather name="camera" size={48} color={BrandColors.gold} />
           </View>
           <ThemedText style={[styles.stepTitle, { color: theme.text }]}>
             Step 2: Product Photo
           </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.stepDescription, { color: theme.textSecondary }]}
+          >
             Take a photo of the product to save with your order
           </ThemedText>
           <Button onPress={handleOpenProductCamera} style={styles.actionButton}>
             Take Product Photo
           </Button>
           <Pressable onPress={handleSkipProductPhoto} style={styles.skipButton}>
-            <ThemedText style={[styles.skipText, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.skipText, { color: theme.textSecondary }]}
+            >
               Skip product photo
             </ThemedText>
           </Pressable>
@@ -475,24 +568,43 @@ export default function QuickAddProductScreen() {
 
   if (step === "processing") {
     return (
-      <ThemedView style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}>
+      <ThemedView
+        style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}
+      >
         <View style={styles.stepContainer}>
-          <View style={[styles.vendorBadge, { backgroundColor: BrandColors.goldLight }]}>
+          <View
+            style={[
+              styles.vendorBadge,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
             <Feather name="briefcase" size={14} color={BrandColors.gold} />
-            <ThemedText style={[styles.vendorBadgeText, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.vendorBadgeText, { color: BrandColors.gold }]}
+            >
               {sessionVendor?.name || "Unknown Vendor"} • {sessionSeason}
             </ThemedText>
           </View>
           {labelImageUri ? (
-            <Image source={{ uri: labelImageUri }} style={styles.scanningImage} />
+            <Image
+              source={{ uri: labelImageUri }}
+              style={styles.scanningImage}
+            />
           ) : null}
           <View style={styles.scanningOverlay}>
             <ActivityIndicator size="large" color={BrandColors.gold} />
           </View>
-          <ThemedText style={[styles.stepTitle, { color: theme.text, marginTop: Spacing.xl }]}>
+          <ThemedText
+            style={[
+              styles.stepTitle,
+              { color: theme.text, marginTop: Spacing.xl },
+            ]}
+          >
             Finishing Up...
           </ThemedText>
-          <ThemedText style={[styles.stepDescription, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.stepDescription, { color: theme.textSecondary }]}
+          >
             Almost there! Extracting product details from label
           </ThemedText>
         </View>
@@ -512,8 +624,13 @@ export default function QuickAddProductScreen() {
       <View style={styles.imageRow}>
         {productImageUri ? (
           <View style={styles.thumbContainer}>
-            <Image source={{ uri: productImageUri }} style={styles.thumbImage} />
-            <ThemedText style={[styles.thumbLabel, { color: theme.textSecondary }]}>
+            <Image
+              source={{ uri: productImageUri }}
+              style={styles.thumbImage}
+            />
+            <ThemedText
+              style={[styles.thumbLabel, { color: theme.textSecondary }]}
+            >
               Product
             </ThemedText>
           </View>
@@ -521,14 +638,21 @@ export default function QuickAddProductScreen() {
         {labelImageUri ? (
           <View style={styles.thumbContainer}>
             <Image source={{ uri: labelImageUri }} style={styles.thumbImage} />
-            <ThemedText style={[styles.thumbLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.thumbLabel, { color: theme.textSecondary }]}
+            >
               Label
             </ThemedText>
           </View>
         ) : null}
       </View>
 
-      <View style={[styles.extractedBadge, { backgroundColor: BrandColors.goldLight }]}>
+      <View
+        style={[
+          styles.extractedBadge,
+          { backgroundColor: BrandColors.goldLight },
+        ]}
+      >
         <Feather name="zap" size={16} color={BrandColors.gold} />
         <ThemedText style={[styles.extractedText, { color: BrandColors.gold }]}>
           Review extracted info and fill in any missing fields
@@ -591,7 +715,9 @@ export default function QuickAddProductScreen() {
           <ThemedText style={[styles.colorLabel, { color: theme.text }]}>
             Colors Ordered
           </ThemedText>
-          <ThemedText style={[styles.colorHint, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.colorHint, { color: theme.textSecondary }]}
+          >
             Tap to select colors you ordered
           </ThemedText>
           <View style={styles.colorGrid}>
@@ -601,28 +727,34 @@ export default function QuickAddProductScreen() {
                 onPress={() => toggleColorSelection(color)}
                 style={[
                   styles.colorChip,
-                  { 
-                    backgroundColor: selectedColors.includes(color) 
-                      ? BrandColors.goldLight 
+                  {
+                    backgroundColor: selectedColors.includes(color)
+                      ? BrandColors.goldLight
                       : theme.backgroundSecondary,
                     borderColor: selectedColors.includes(color)
                       ? BrandColors.gold
                       : "transparent",
-                  }
+                  },
                 ]}
               >
-                <Feather 
-                  name={selectedColors.includes(color) ? "heart" : "heart"} 
-                  size={16} 
-                  color={selectedColors.includes(color) ? BrandColors.gold : theme.textSecondary} 
+                <Feather
+                  name={selectedColors.includes(color) ? "heart" : "heart"}
+                  size={16}
+                  color={
+                    selectedColors.includes(color)
+                      ? BrandColors.gold
+                      : theme.textSecondary
+                  }
                   style={{ opacity: selectedColors.includes(color) ? 1 : 0.4 }}
                 />
-                <ThemedText 
+                <ThemedText
                   style={[
-                    styles.colorChipText, 
-                    { 
-                      color: selectedColors.includes(color) ? BrandColors.gold : theme.text 
-                    }
+                    styles.colorChipText,
+                    {
+                      color: selectedColors.includes(color)
+                        ? BrandColors.gold
+                        : theme.text,
+                    },
                   ]}
                 >
                   {color}
@@ -653,7 +785,9 @@ export default function QuickAddProductScreen() {
               />
             </View>
             <View style={[styles.halfInput, styles.packInfo]}>
-              <ThemedText style={[styles.packInfoLabel, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.packInfoLabel, { color: theme.textSecondary }]}
+              >
                 Pack Ratio
               </ThemedText>
               <ThemedText style={[styles.packInfoValue, { color: theme.text }]}>
@@ -661,8 +795,15 @@ export default function QuickAddProductScreen() {
               </ThemedText>
             </View>
           </View>
-          <View style={[styles.packBreakdown, { backgroundColor: BrandColors.goldLight }]}>
-            <ThemedText style={[styles.packBreakdownText, { color: BrandColors.gold }]}>
+          <View
+            style={[
+              styles.packBreakdown,
+              { backgroundColor: BrandColors.goldLight },
+            ]}
+          >
+            <ThemedText
+              style={[styles.packBreakdownText, { color: BrandColors.gold }]}
+            >
               {getPackBreakdown()} = {getTotalUnitsFromPacks()} total units
             </ThemedText>
           </View>

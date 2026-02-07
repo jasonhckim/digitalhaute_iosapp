@@ -8,11 +8,11 @@ const SETTINGS_KEY = "@digitalhaute/settings";
 
 const DEFAULT_SETTINGS: AppSettings = {
   markupMultiplier: 2.5,
-  roundingMode: 'none',
+  roundingMode: "none",
 };
 
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 export const ProductStorage = {
@@ -31,7 +31,9 @@ export const ProductStorage = {
     return products.find((p) => p.id === id) || null;
   },
 
-  async create(product: Omit<Product, "id" | "createdAt" | "updatedAt">): Promise<Product> {
+  async create(
+    product: Omit<Product, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Product> {
     const products = await this.getAll();
     const now = new Date().toISOString();
     const newProduct: Product = {
@@ -49,7 +51,7 @@ export const ProductStorage = {
     const products = await this.getAll();
     const index = products.findIndex((p) => p.id === id);
     if (index === -1) return null;
-    
+
     products[index] = {
       ...products[index],
       ...updates,
@@ -89,7 +91,9 @@ export const VendorStorage = {
     return vendors.find((v) => v.id === id) || null;
   },
 
-  async create(vendor: Omit<Vendor, "id" | "createdAt" | "updatedAt">): Promise<Vendor> {
+  async create(
+    vendor: Omit<Vendor, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Vendor> {
     const vendors = await this.getAll();
     const now = new Date().toISOString();
     const newVendor: Vendor = {
@@ -107,7 +111,7 @@ export const VendorStorage = {
     const vendors = await this.getAll();
     const index = vendors.findIndex((v) => v.id === id);
     if (index === -1) return null;
-    
+
     vendors[index] = {
       ...vendors[index],
       ...updates,
@@ -142,7 +146,9 @@ export const BudgetStorage = {
     return budgets.find((b) => b.id === id) || null;
   },
 
-  async create(budget: Omit<Budget, "id" | "createdAt" | "updatedAt">): Promise<Budget> {
+  async create(
+    budget: Omit<Budget, "id" | "createdAt" | "updatedAt">,
+  ): Promise<Budget> {
     const budgets = await this.getAll();
     const now = new Date().toISOString();
     const newBudget: Budget = {
@@ -160,7 +166,7 @@ export const BudgetStorage = {
     const budgets = await this.getAll();
     const index = budgets.findIndex((b) => b.id === id);
     if (index === -1) return null;
-    
+
     budgets[index] = {
       ...budgets[index],
       ...updates,
@@ -180,7 +186,7 @@ export const BudgetStorage = {
 
   async updateSpent(products: Product[]): Promise<void> {
     const budgets = await this.getAll();
-    
+
     for (const budget of budgets) {
       let spent = 0;
       for (const product of products) {
@@ -193,7 +199,7 @@ export const BudgetStorage = {
       }
       budget.spent = spent;
     }
-    
+
     await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
   },
 };
@@ -203,15 +209,15 @@ export const SettingsStorage = {
     try {
       const data = await AsyncStorage.getItem(SETTINGS_KEY);
       if (!data) return DEFAULT_SETTINGS;
-      
+
       const parsed = JSON.parse(data);
-      
+
       // Migrate old roundUpPrices boolean to new roundingMode
-      if ('roundUpPrices' in parsed && !('roundingMode' in parsed)) {
-        parsed.roundingMode = parsed.roundUpPrices ? 'up' : 'none';
+      if ("roundUpPrices" in parsed && !("roundingMode" in parsed)) {
+        parsed.roundingMode = parsed.roundUpPrices ? "up" : "none";
         delete parsed.roundUpPrices;
       }
-      
+
       return { ...DEFAULT_SETTINGS, ...parsed };
     } catch (error) {
       console.error("Error getting settings:", error);
@@ -225,11 +231,11 @@ export const SettingsStorage = {
 
   calculateRetailPrice(wholesalePrice: number, settings: AppSettings): number {
     const rawPrice = wholesalePrice * settings.markupMultiplier;
-    
+
     switch (settings.roundingMode) {
-      case 'up':
+      case "up":
         return Math.ceil(rawPrice);
-      case 'even':
+      case "even":
         const rounded = Math.ceil(rawPrice);
         return rounded % 2 === 0 ? rounded : rounded + 1;
       default:
@@ -237,6 +243,24 @@ export const SettingsStorage = {
     }
   },
 };
+
+export function calculateRetailPrice(
+  wholesalePrice: number,
+  settings: AppSettings | null,
+): number {
+  if (!settings) return wholesalePrice * 2.5;
+  const rawPrice = wholesalePrice * settings.markupMultiplier;
+
+  switch (settings.roundingMode) {
+    case "up":
+      return Math.ceil(rawPrice);
+    case "even":
+      const rounded = Math.ceil(rawPrice);
+      return rounded % 2 === 0 ? rounded : rounded + 1;
+    default:
+      return Math.round(rawPrice * 100) / 100;
+  }
+}
 
 export async function getDashboardStats(): Promise<{
   totalProducts: number;
@@ -254,10 +278,13 @@ export async function getDashboardStats(): Promise<{
   ]);
 
   const activeProducts = products.filter((p) => p.status !== "cancelled");
-  
+
   const upcomingDeliveries = activeProducts
     .filter((p) => new Date(p.deliveryDate) >= new Date())
-    .sort((a, b) => new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime(),
+    );
 
   const totalBudget = budgets.reduce((sum, b) => sum + b.amount, 0);
   const totalSpent = budgets.reduce((sum, b) => sum + b.spent, 0);

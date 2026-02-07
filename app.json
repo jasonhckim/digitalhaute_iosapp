@@ -35,7 +35,18 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Digital Haute to access your camera to scan product labels and take product photos."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Digital Haute to access your photos to add product images."
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true

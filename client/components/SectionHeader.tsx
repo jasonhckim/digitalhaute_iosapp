@@ -12,16 +12,20 @@ interface SectionHeaderProps {
   onAction?: () => void;
 }
 
-export function SectionHeader({ title, actionLabel, onAction }: SectionHeaderProps) {
+export function SectionHeader({
+  title,
+  actionLabel,
+  onAction,
+}: SectionHeaderProps) {
   const { theme } = useTheme();
 
   return (
     <View style={styles.container}>
       <ThemedText style={styles.title}>{title}</ThemedText>
-      
+
       {actionLabel && onAction ? (
-        <Pressable 
-          style={styles.action} 
+        <Pressable
+          style={styles.action}
           onPress={onAction}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >

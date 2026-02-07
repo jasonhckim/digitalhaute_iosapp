@@ -14,7 +14,12 @@ interface VendorCardProps {
   onPress?: () => void;
 }
 
-export function VendorCard({ vendor, productCount = 0, totalSpend = 0, onPress }: VendorCardProps) {
+export function VendorCard({
+  vendor,
+  productCount = 0,
+  totalSpend = 0,
+  onPress,
+}: VendorCardProps) {
   const { theme } = useTheme();
 
   const formatCurrency = (value: number) => {
@@ -36,33 +41,41 @@ export function VendorCard({ vendor, productCount = 0, totalSpend = 0, onPress }
       onPress={onPress}
     >
       <View style={styles.content}>
-        <View style={[styles.avatar, { backgroundColor: `${BrandColors.gold}15` }]}>
+        <View
+          style={[styles.avatar, { backgroundColor: `${BrandColors.gold}15` }]}
+        >
           <ThemedText style={[styles.avatarText, { color: BrandColors.gold }]}>
             {vendor.name.charAt(0).toUpperCase()}
           </ThemedText>
         </View>
-        
+
         <View style={styles.details}>
           <ThemedText style={styles.name}>{vendor.name}</ThemedText>
-          
+
           {vendor.contactName ? (
-            <ThemedText style={[styles.contact, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.contact, { color: theme.textSecondary }]}
+            >
               {vendor.contactName}
             </ThemedText>
           ) : null}
-          
+
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Feather name="package" size={12} color={theme.textTertiary} />
-              <ThemedText style={[styles.statText, { color: theme.textTertiary }]}>
+              <ThemedText
+                style={[styles.statText, { color: theme.textTertiary }]}
+              >
                 {productCount} products
               </ThemedText>
             </View>
           </View>
         </View>
-        
+
         <View style={styles.spendContainer}>
-          <ThemedText style={[styles.spendLabel, { color: theme.textTertiary }]}>
+          <ThemedText
+            style={[styles.spendLabel, { color: theme.textTertiary }]}
+          >
             Total Spend
           </ThemedText>
           <ThemedText style={[styles.spendValue, { color: BrandColors.gold }]}>
@@ -70,7 +83,7 @@ export function VendorCard({ vendor, productCount = 0, totalSpend = 0, onPress }
           </ThemedText>
         </View>
       </View>
-      
+
       <View style={styles.chevron}>
         <Feather name="chevron-right" size={20} color={theme.textTertiary} />
       </View>

@@ -12,7 +12,7 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status }: StatusBadgeProps) {
   const color = StatusColors[status];
-  
+
   return (
     <View style={[styles.badge, { backgroundColor: `${color}20` }]}>
       <ThemedText style={[styles.text, { color }]}>

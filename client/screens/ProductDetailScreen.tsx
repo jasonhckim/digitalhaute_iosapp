@@ -1,5 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, ScrollView, Image, Alert, Pressable } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Image,
+  Alert,
+  Pressable,
+} from "react-native";
 import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -47,13 +54,14 @@ export default function ProductDetailScreen() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!product) return;
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
+
     try {
       const updated = await ProductStorage.update(product.id, {
         status: newStatus as ProductStatus,
-        receivedDate: newStatus === "received" ? new Date().toISOString() : undefined,
+        receivedDate:
+          newStatus === "received" ? new Date().toISOString() : undefined,
       });
       if (updated) {
         setProduct(updated);
@@ -81,7 +89,7 @@ export default function ProductDetailScreen() {
             navigation.goBack();
           },
         },
-      ]
+      ],
     );
   };
 
@@ -103,7 +111,9 @@ export default function ProductDetailScreen() {
 
   if (isLoading || !product) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+      >
         <View style={[styles.loadingContainer, { paddingTop: headerHeight }]}>
           <ThemedText>Loading...</ThemedText>
         </View>
@@ -128,7 +138,12 @@ export default function ProductDetailScreen() {
       {product.imageUri ? (
         <Image source={{ uri: product.imageUri }} style={styles.image} />
       ) : (
-        <View style={[styles.imagePlaceholder, { backgroundColor: theme.backgroundSecondary }]}>
+        <View
+          style={[
+            styles.imagePlaceholder,
+            { backgroundColor: theme.backgroundSecondary },
+          ]}
+        >
           <Feather name="image" size={48} color={theme.textTertiary} />
         </View>
       )}
@@ -138,49 +153,77 @@ export default function ProductDetailScreen() {
         <StatusBadge status={product.status} />
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundRoot },
+          Shadows.card,
+        ]}
+      >
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Vendor
           </ThemedText>
-          <ThemedText style={styles.detailValue}>{product.vendorName}</ThemedText>
+          <ThemedText style={styles.detailValue}>
+            {product.vendorName}
+          </ThemedText>
         </View>
-        
+
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Style #
           </ThemedText>
-          <ThemedText style={styles.detailValue}>{product.styleNumber}</ThemedText>
+          <ThemedText style={styles.detailValue}>
+            {product.styleNumber}
+          </ThemedText>
         </View>
-        
+
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Category
           </ThemedText>
           <ThemedText style={styles.detailValue}>{product.category}</ThemedText>
         </View>
-        
+
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Season
           </ThemedText>
           <ThemedText style={styles.detailValue}>{product.season}</ThemedText>
         </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundRoot },
+          Shadows.card,
+        ]}
+      >
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Wholesale Price
           </ThemedText>
           <ThemedText style={[styles.priceValue, { color: BrandColors.gold }]}>
             {formatCurrency(product.wholesalePrice)}
           </ThemedText>
         </View>
-        
+
         {product.retailPrice ? (
           <View style={styles.detailRow}>
-            <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
               Retail Price
             </ThemedText>
             <ThemedText style={styles.detailValue}>
@@ -188,16 +231,20 @@ export default function ProductDetailScreen() {
             </ThemedText>
           </View>
         ) : null}
-        
+
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Quantity
           </ThemedText>
           <ThemedText style={styles.detailValue}>{product.quantity}</ThemedText>
         </View>
-        
+
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Total Cost
           </ThemedText>
           <ThemedText style={[styles.priceValue, { color: BrandColors.gold }]}>
@@ -206,19 +253,29 @@ export default function ProductDetailScreen() {
         </View>
       </View>
 
-      <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+      <View
+        style={[
+          styles.card,
+          { backgroundColor: theme.backgroundRoot },
+          Shadows.card,
+        ]}
+      >
         <View style={styles.detailRow}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.detailLabel, { color: theme.textSecondary }]}
+          >
             Delivery Date
           </ThemedText>
           <ThemedText style={styles.detailValue}>
             {formatDate(product.deliveryDate)}
           </ThemedText>
         </View>
-        
+
         {product.receivedDate ? (
           <View style={styles.detailRow}>
-            <ThemedText style={[styles.detailLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
               Received Date
             </ThemedText>
             <ThemedText style={styles.detailValue}>
@@ -229,8 +286,19 @@ export default function ProductDetailScreen() {
       </View>
 
       {product.notes ? (
-        <View style={[styles.card, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
-          <ThemedText style={[styles.detailLabel, { color: theme.textSecondary, marginBottom: Spacing.sm }]}>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.detailLabel,
+              { color: theme.textSecondary, marginBottom: Spacing.sm },
+            ]}
+          >
             Notes
           </ThemedText>
           <ThemedText style={styles.notesText}>{product.notes}</ThemedText>
@@ -244,7 +312,11 @@ export default function ProductDetailScreen() {
         onChange={handleStatusChange}
       />
 
-      <Button variant="secondary" onPress={handleDelete} style={styles.deleteButton}>
+      <Button
+        variant="secondary"
+        onPress={handleDelete}
+        style={styles.deleteButton}
+      >
         Delete Product
       </Button>
     </ScrollView>

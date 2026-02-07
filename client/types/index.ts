@@ -1,4 +1,10 @@
-export type ProductStatus = 'maybe' | 'ordered' | 'shipped' | 'delivered' | 'received' | 'cancelled';
+export type ProductStatus =
+  | "maybe"
+  | "ordered"
+  | "shipped"
+  | "delivered"
+  | "received"
+  | "cancelled";
 
 export interface Product {
   id: string;
@@ -68,34 +74,53 @@ export interface DashboardStats {
 }
 
 export const CATEGORIES = [
-  'Tops',
-  'Bottoms',
-  'Dresses',
-  'Outerwear',
-  'Accessories',
-  'Shoes',
-  'Bags',
-  'Jewelry',
+  "Tops",
+  "Bottoms",
+  "Dresses",
+  "Outerwear",
+  "Accessories",
+  "Shoes",
+  "Bags",
+  "Jewelry",
 ] as const;
 
-export const SEASONS = [
-  'Spring 2026',
-  'Summer 2026',
-  'Fall 2026',
-  'Winter 2026',
-  'Resort 2027',
-] as const;
+function generateSeasons(): string[] {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const seasons: string[] = [];
+
+  // Determine which seasons to show based on current month
+  // Fashion buying typically works 6-12 months ahead
+  const seasonNames = ["Spring", "Summer", "Fall", "Winter", "Resort"];
+
+  // Start from current season of current year, show through next year + Resort
+  for (let yearOffset = 0; yearOffset <= 1; yearOffset++) {
+    const year = currentYear + yearOffset;
+    for (const name of seasonNames) {
+      if (name === "Resort") {
+        seasons.push(`${name} ${year + 1}`);
+      } else {
+        seasons.push(`${name} ${year}`);
+      }
+    }
+  }
+
+  return seasons;
+}
+
+export const SEASONS = generateSeasons();
 
 export const STATUS_LABELS: Record<ProductStatus, string> = {
-  maybe: 'Maybe',
-  ordered: 'Ordered',
-  shipped: 'Shipped',
-  delivered: 'Delivered',
-  received: 'Received',
-  cancelled: 'Cancelled',
+  maybe: "Maybe",
+  ordered: "Ordered",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  received: "Received",
+  cancelled: "Cancelled",
 };
 
-export type RoundingMode = 'none' | 'up' | 'even';
+export type RoundingMode = "none" | "up" | "even";
 
 export interface AppSettings {
   markupMultiplier: number;
