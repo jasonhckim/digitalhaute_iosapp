@@ -6,6 +6,7 @@ import {
   Pressable,
   ActivityIndicator,
   Linking,
+  Alert,
 } from "react-native";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -21,6 +22,7 @@ import { SettingsStorage } from "@/lib/storage";
 import { AppSettings, RoundingMode, ShopifyStatus } from "@/types";
 import { checkShopifyStatus } from "@/lib/shopify";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
+import { getApiUrl } from "@/lib/query-client";
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -31,7 +33,9 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [markupText, setMarkupText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [shopifyStatus, setShopifyStatus] = useState<ShopifyStatus | null>(null);
+  const [shopifyStatus, setShopifyStatus] = useState<ShopifyStatus | null>(
+    null,
+  );
   const [shopifyLoading, setShopifyLoading] = useState(true);
 
   useEffect(() => {
@@ -53,7 +57,7 @@ export default function SettingsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadShopifyStatus();
-    }, [loadShopifyStatus])
+    }, [loadShopifyStatus]),
   );
 
   const loadSettings = async () => {
@@ -72,10 +76,15 @@ export default function SettingsScreen() {
     };
 
     setIsSaving(true);
-    await SettingsStorage.save(updatedSettings);
-    setIsSaving(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    navigation.goBack();
+    try {
+      await SettingsStorage.save(updatedSettings);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      navigation.goBack();
+    } catch {
+      Alert.alert("Error", "Failed to save settings. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const setRoundingMode = (mode: RoundingMode) => {
@@ -87,13 +96,13 @@ export default function SettingsScreen() {
   const exampleWholesale = 14.97;
   const multiplier = parseFloat(markupText) || 0;
   const rawRetail = exampleWholesale * multiplier;
-  
+
   const calculatePreviewPrice = (): number => {
     if (!settings) return rawRetail;
     switch (settings.roundingMode) {
-      case 'up':
+      case "up":
         return Math.ceil(rawRetail);
-      case 'even':
+      case "even":
         const rounded = Math.ceil(rawRetail);
         return rounded % 2 === 0 ? rounded : rounded + 1;
       default:
@@ -102,11 +111,16 @@ export default function SettingsScreen() {
   };
   const exampleRetail = calculatePreviewPrice();
 
-  const roundingOptions: { mode: RoundingMode; label: string; hint: string }[] = [
-    { mode: 'none', label: 'No Rounding', hint: '$41.92 stays $41.92' },
-    { mode: 'up', label: 'Round Up', hint: '$41.92 becomes $42' },
-    { mode: 'even', label: 'Round to Even', hint: '$41.92 becomes $42, $43 becomes $44' },
-  ];
+  const roundingOptions: { mode: RoundingMode; label: string; hint: string }[] =
+    [
+      { mode: "none", label: "No Rounding", hint: "$41.92 stays $41.92" },
+      { mode: "up", label: "Round Up", hint: "$41.92 becomes $42" },
+      {
+        mode: "even",
+        label: "Round to Even",
+        hint: "$41.92 becomes $42, $43 becomes $44",
+      },
+    ];
 
   if (!settings) {
     return (
@@ -121,13 +135,27 @@ export default function SettingsScreen() {
       <KeyboardAwareScrollViewCompat
         contentContainerStyle={[
           styles.content,
-          { paddingTop: headerHeight + Spacing.xl, paddingBottom: insets.bottom + Spacing.xl },
+          {
+            paddingTop: headerHeight + Spacing.xl,
+            paddingBottom: insets.bottom + Spacing.xl,
+          },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.section, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconContainer, { backgroundColor: `${BrandColors.gold}15` }]}>
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
+            >
               <Feather name="percent" size={20} color={BrandColors.gold} />
             </View>
             <ThemedText style={styles.sectionTitle}>Pricing Markup</ThemedText>
@@ -145,7 +173,9 @@ export default function SettingsScreen() {
               placeholder="2.5"
               placeholderTextColor={theme.textTertiary}
             />
-            <ThemedText style={[styles.inputSuffix, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.inputSuffix, { color: theme.textSecondary }]}
+            >
               x wholesale
             </ThemedText>
           </View>
@@ -164,21 +194,39 @@ export default function SettingsScreen() {
                 key={option.mode}
                 style={[
                   styles.roundingOption,
-                  { 
-                    borderColor: settings.roundingMode === option.mode ? BrandColors.gold : theme.border,
-                    backgroundColor: settings.roundingMode === option.mode ? `${BrandColors.gold}10` : 'transparent',
+                  {
+                    borderColor:
+                      settings.roundingMode === option.mode
+                        ? BrandColors.gold
+                        : theme.border,
+                    backgroundColor:
+                      settings.roundingMode === option.mode
+                        ? `${BrandColors.gold}10`
+                        : "transparent",
                   },
                 ]}
                 onPress={() => setRoundingMode(option.mode)}
               >
                 <View style={styles.radioOuter}>
                   {settings.roundingMode === option.mode ? (
-                    <View style={[styles.radioInner, { backgroundColor: BrandColors.gold }]} />
+                    <View
+                      style={[
+                        styles.radioInner,
+                        { backgroundColor: BrandColors.gold },
+                      ]}
+                    />
                   ) : null}
                 </View>
                 <View style={styles.roundingOptionText}>
-                  <ThemedText style={styles.roundingOptionLabel}>{option.label}</ThemedText>
-                  <ThemedText style={[styles.roundingOptionHint, { color: theme.textSecondary }]}>
+                  <ThemedText style={styles.roundingOptionLabel}>
+                    {option.label}
+                  </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.roundingOptionHint,
+                      { color: theme.textSecondary },
+                    ]}
+                  >
                     {option.hint}
                   </ThemedText>
                 </View>
@@ -187,15 +235,24 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        <View style={[styles.previewCard, { backgroundColor: `${BrandColors.gold}10` }]}>
+        <View
+          style={[
+            styles.previewCard,
+            { backgroundColor: `${BrandColors.gold}10` },
+          ]}
+        >
           <View style={styles.previewHeader}>
             <Feather name="eye" size={16} color={BrandColors.gold} />
-            <ThemedText style={[styles.previewTitle, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.previewTitle, { color: BrandColors.gold }]}
+            >
               Preview
             </ThemedText>
           </View>
           <View style={styles.previewRow}>
-            <ThemedText style={[styles.previewLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.previewLabel, { color: theme.textSecondary }]}
+            >
               Wholesale:
             </ThemedText>
             <ThemedText style={styles.previewValue}>
@@ -203,21 +260,46 @@ export default function SettingsScreen() {
             </ThemedText>
           </View>
           <View style={styles.previewRow}>
-            <ThemedText style={[styles.previewLabel, { color: theme.textSecondary }]}>
+            <ThemedText
+              style={[styles.previewLabel, { color: theme.textSecondary }]}
+            >
               Retail:
             </ThemedText>
-            <ThemedText style={[styles.previewValue, { color: BrandColors.gold }]}>
+            <ThemedText
+              style={[styles.previewValue, { color: BrandColors.gold }]}
+            >
               ${multiplier > 0 ? exampleRetail.toFixed(2) : "—"}
             </ThemedText>
           </View>
         </View>
 
-        <View style={[styles.section, { backgroundColor: theme.backgroundRoot }, Shadows.card]}>
+        <View
+          style={[
+            styles.section,
+            { backgroundColor: theme.backgroundRoot },
+            Shadows.card,
+          ]}
+        >
           <View style={styles.sectionHeader}>
-            <View style={[styles.iconContainer, { backgroundColor: shopifyStatus?.connected ? "#e6f4ea" : `${BrandColors.gold}15` }]}>
-              <Feather name="shopping-bag" size={20} color={shopifyStatus?.connected ? "#34a853" : BrandColors.gold} />
+            <View
+              style={[
+                styles.iconContainer,
+                {
+                  backgroundColor: shopifyStatus?.connected
+                    ? "#e6f4ea"
+                    : `${BrandColors.gold}15`,
+                },
+              ]}
+            >
+              <Feather
+                name="shopping-bag"
+                size={20}
+                color={shopifyStatus?.connected ? "#34a853" : BrandColors.gold}
+              />
             </View>
-            <ThemedText style={styles.sectionTitle}>Shopify Integration</ThemedText>
+            <ThemedText style={styles.sectionTitle}>
+              Shopify Integration
+            </ThemedText>
           </View>
 
           {shopifyLoading ? (
@@ -227,46 +309,74 @@ export default function SettingsScreen() {
           ) : shopifyStatus?.connected ? (
             <View>
               <View style={styles.shopifyConnectedRow}>
-                <View style={[styles.shopifyStatusDot, { backgroundColor: "#34a853" }]} />
-                <ThemedText style={styles.shopifyConnectedText}>Connected</ThemedText>
+                <View
+                  style={[
+                    styles.shopifyStatusDot,
+                    { backgroundColor: "#34a853" },
+                  ]}
+                />
+                <ThemedText style={styles.shopifyConnectedText}>
+                  Connected
+                </ThemedText>
               </View>
-              <ThemedText style={[styles.shopifyDomain, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.shopifyDomain, { color: theme.textSecondary }]}
+              >
                 {shopifyStatus.shopDomain}
               </ThemedText>
               {shopifyStatus.connectedAt ? (
-                <ThemedText style={[styles.shopifyDate, { color: theme.textTertiary }]}>
-                  Connected {new Date(shopifyStatus.connectedAt).toLocaleDateString()}
+                <ThemedText
+                  style={[styles.shopifyDate, { color: theme.textTertiary }]}
+                >
+                  Connected{" "}
+                  {new Date(shopifyStatus.connectedAt).toLocaleDateString()}
                 </ThemedText>
               ) : null}
               <Pressable
                 onPress={() => {
                   Haptics.selectionAsync();
-                  Linking.openURL("https://digital-haute.replit.app/shopify");
+                  Linking.openURL(`${getApiUrl()}shopify`);
                 }}
                 style={styles.shopifyDisconnectLink}
               >
-                <ThemedText style={[styles.shopifyDisconnectText, { color: theme.textTertiary }]}>
+                <ThemedText
+                  style={[
+                    styles.shopifyDisconnectText,
+                    { color: theme.textTertiary },
+                  ]}
+                >
                   Disconnect
                 </ThemedText>
               </Pressable>
             </View>
           ) : (
             <View>
-              <ThemedText style={[styles.shopifyDescription, { color: theme.textSecondary }]}>
-                Connect your Shopify store to export products directly from the app.
+              <ThemedText
+                style={[
+                  styles.shopifyDescription,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                Connect your Shopify store to export products directly from the
+                app.
               </ThemedText>
               <Pressable
                 style={({ pressed }) => [
                   styles.shopifyConnectButton,
-                  { backgroundColor: BrandColors.gold, opacity: pressed ? 0.9 : 1 },
+                  {
+                    backgroundColor: BrandColors.gold,
+                    opacity: pressed ? 0.9 : 1,
+                  },
                 ]}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  Linking.openURL("https://digital-haute.replit.app/shopify");
+                  Linking.openURL(`${getApiUrl()}shopify`);
                 }}
               >
                 <Feather name="shopping-bag" size={18} color="#fff" />
-                <ThemedText style={styles.shopifyConnectButtonText}>Connect Store</ThemedText>
+                <ThemedText style={styles.shopifyConnectButtonText}>
+                  Connect Store
+                </ThemedText>
               </Pressable>
             </View>
           )}

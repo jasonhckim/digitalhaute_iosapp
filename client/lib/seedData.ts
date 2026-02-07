@@ -4,7 +4,7 @@ import { Product, Vendor, Budget, ProductStatus } from "@/types";
 const SEED_KEY = "@digitalhaute/seeded";
 
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
 }
 
 const mockVendors: Omit<Vendor, "id" | "createdAt" | "updatedAt">[] = [
@@ -238,7 +238,10 @@ export async function seedMockData(): Promise<boolean> {
       updatedAt: now,
     }));
 
-    await AsyncStorage.setItem("@digitalhaute/vendors", JSON.stringify(vendors));
+    await AsyncStorage.setItem(
+      "@digitalhaute/vendors",
+      JSON.stringify(vendors),
+    );
 
     const getDeliveryDate = (daysFromNow: number) => {
       const date = new Date();
@@ -269,7 +272,10 @@ export async function seedMockData(): Promise<boolean> {
       updatedAt: now,
     }));
 
-    await AsyncStorage.setItem("@digitalhaute/products", JSON.stringify(products));
+    await AsyncStorage.setItem(
+      "@digitalhaute/products",
+      JSON.stringify(products),
+    );
 
     const budgets: Budget[] = mockBudgets.map((b, index) => {
       let spent = 0;
@@ -280,7 +286,7 @@ export async function seedMockData(): Promise<boolean> {
           spent += product.wholesalePrice * product.quantity;
         }
       }
-      
+
       return {
         ...b,
         id: generateId() + index,
@@ -290,7 +296,10 @@ export async function seedMockData(): Promise<boolean> {
       };
     });
 
-    await AsyncStorage.setItem("@digitalhaute/budgets", JSON.stringify(budgets));
+    await AsyncStorage.setItem(
+      "@digitalhaute/budgets",
+      JSON.stringify(budgets),
+    );
 
     await AsyncStorage.setItem(SEED_KEY, "true");
 
@@ -306,6 +315,7 @@ export async function clearAllData(): Promise<void> {
     "@digitalhaute/products",
     "@digitalhaute/vendors",
     "@digitalhaute/budgets",
+    "@digitalhaute/settings",
     SEED_KEY,
   ]);
 }

@@ -1,5 +1,12 @@
 import React from "react";
-import { View, StyleSheet, ScrollView, Pressable, Image } from "react-native";
+import {
+  View,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  Image,
+  Alert,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
@@ -11,30 +18,43 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
 import { AccountStackParamList } from "@/navigation/AccountStackNavigator";
+import { clearAllData } from "@/lib/seedData";
 
 interface MenuItemProps {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   onPress?: () => void;
   danger?: boolean;
+  disabled?: boolean;
 }
 
-function MenuItem({ icon, label, onPress, danger }: MenuItemProps) {
+function MenuItem({ icon, label, onPress, danger, disabled }: MenuItemProps) {
   const { theme } = useTheme();
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.menuItem,
-        { backgroundColor: theme.backgroundRoot, opacity: pressed ? 0.9 : 1 },
+        {
+          backgroundColor: theme.backgroundRoot,
+          opacity: disabled ? 0.5 : pressed ? 0.9 : 1,
+        },
         Shadows.card,
       ]}
+      disabled={disabled}
       onPress={() => {
         Haptics.selectionAsync();
         onPress?.();
       }}
     >
-      <View style={[styles.menuIcon, { backgroundColor: `${danger ? BrandColors.error : BrandColors.gold}15` }]}>
+      <View
+        style={[
+          styles.menuIcon,
+          {
+            backgroundColor: `${danger ? BrandColors.error : BrandColors.gold}15`,
+          },
+        ]}
+      >
         <Feather
           name={icon}
           size={20}
@@ -46,18 +66,45 @@ function MenuItem({ icon, label, onPress, danger }: MenuItemProps) {
       >
         {label}
       </ThemedText>
-      <Feather name="chevron-right" size={20} color={theme.textTertiary} />
+      {disabled ? (
+        <ThemedText style={{ fontSize: 12, color: theme.textTertiary }}>
+          Coming Soon
+        </ThemedText>
+      ) : (
+        <Feather name="chevron-right" size={20} color={theme.textTertiary} />
+      )}
     </Pressable>
   );
 }
 
-type AccountScreenNavProp = NativeStackNavigationProp<AccountStackParamList, "Account">;
+type AccountScreenNavProp = NativeStackNavigationProp<
+  AccountStackParamList,
+  "Account"
+>;
 
 export default function AccountScreen() {
   const navigation = useNavigation<AccountScreenNavProp>();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
+
+  const handleLogOut = () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out? Your local data will be cleared.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log Out",
+          style: "destructive",
+          onPress: async () => {
+            await clearAllData();
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <ScrollView
@@ -75,7 +122,12 @@ export default function AccountScreen() {
           </ThemedText>
         </View>
         <ThemedText style={styles.userName}>Fashion Boutique</ThemedText>
-        <View style={[styles.roleBadge, { backgroundColor: `${BrandColors.gold}15` }]}>
+        <View
+          style={[
+            styles.roleBadge,
+            { backgroundColor: `${BrandColors.gold}15` },
+          ]}
+        >
           <ThemedText style={[styles.roleText, { color: BrandColors.gold }]}>
             Owner
           </ThemedText>
@@ -83,15 +135,24 @@ export default function AccountScreen() {
       </View>
 
       <View style={styles.menuSection}>
-        <MenuItem icon="settings" label="Settings" onPress={() => navigation.navigate("Settings")} />
-        <MenuItem icon="users" label="Team Members" />
-        <MenuItem icon="credit-card" label="Billing & Plan" />
-        <MenuItem icon="bell" label="Notifications" />
-        <MenuItem icon="shield" label="Data & Privacy" />
+        <MenuItem
+          icon="settings"
+          label="Settings"
+          onPress={() => navigation.navigate("Settings")}
+        />
+        <MenuItem icon="users" label="Team Members" disabled />
+        <MenuItem icon="credit-card" label="Billing & Plan" disabled />
+        <MenuItem icon="bell" label="Notifications" disabled />
+        <MenuItem icon="shield" label="Data & Privacy" disabled />
       </View>
 
       <View style={styles.menuSection}>
-        <MenuItem icon="log-out" label="Log Out" danger />
+        <MenuItem
+          icon="log-out"
+          label="Log Out"
+          danger
+          onPress={handleLogOut}
+        />
       </View>
 
       <ThemedText style={[styles.version, { color: theme.textTertiary }]}>

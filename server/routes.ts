@@ -56,7 +56,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
 - Interpret color abbreviations: L.BLUE = Light Blue, L.PINK = Light Pink, etc.
 - Style numbers typically start with letters followed by numbers (e.g., HF26C297)
 - Look for category indicators like "Top", "Dress", "Pants" on the label
-- Return valid JSON only, no markdown or explanation`
+- Return valid JSON only, no markdown or explanation`,
           },
           {
             role: "user",
@@ -77,15 +77,25 @@ CRITICAL - This is for WHOLESALE fashion buying:
         max_completion_tokens: 1024,
       });
 
-      const content = response.choices[0]?.message?.content || "{}";
-      
+      const content = response.choices[0]?.message?.content;
+
+      if (!content) {
+        return res.status(502).json({
+          success: false,
+          error: "No response received from image analysis. Please try again with a clearer image.",
+        });
+      }
+
       let result: LabelScanResult;
       try {
         const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
         result = JSON.parse(cleaned);
       } catch (parseError) {
         console.error("Failed to parse OpenAI response:", content);
-        result = {};
+        return res.status(502).json({
+          success: false,
+          error: "Could not parse label data. Please try again with a clearer image.",
+        });
       }
 
       res.json({ success: true, data: result });
@@ -94,6 +104,65 @@ CRITICAL - This is for WHOLESALE fashion buying:
       res.status(500).json({ error: "Failed to scan label" });
     }
   });
+
+  // Shopify integration status endpoint
+  app.get("/api/shopify/status", (req: Request, res: Response) => {
+    const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    const shopifyDomain = process.env.SHOPIFY_SHOP_DOMAIN;
+
+    if (!shopifyAccessToken || !shopifyDomain) {
+      return res.json({
+        success: true,
+        configured: false,
+        connected: false,
+      });
+    }
+
+    return res.json({
+      success: true,
+      configured: true,
+      connected: true,
+      shopDomain: shopifyDomain,
+      connectedAt: process.env.SHOPIFY_CONNECTED_AT || new Date().toISOString(),
+    });
+  });
+
+  // Shopify product export endpoint
+  app.post(
+    "/api/products/export-to-shopify",
+    async (req: Request, res: Response) => {
+      try {
+        const { productIds, shopDomain } = req.body;
+
+        if (
+          !productIds ||
+          !Array.isArray(productIds) ||
+          productIds.length === 0
+        ) {
+          return res.status(400).json({ error: "Product IDs are required" });
+        }
+
+        const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+        if (!shopifyAccessToken || !shopDomain) {
+          return res.status(400).json({
+            error:
+              "Shopify is not configured. Please connect your store in Settings.",
+          });
+        }
+
+        // Full Shopify Admin API integration requires store-specific OAuth setup.
+        return res.status(501).json({
+          success: false,
+          error: "Shopify export is not yet implemented. OAuth integration with Shopify Admin API is required.",
+        });
+      } catch (error) {
+        console.error("Error exporting to Shopify:", error);
+        return res
+          .status(500)
+          .json({ error: "Failed to export products to Shopify" });
+      }
+    },
+  );
 
   const httpServer = createServer(app);
 

@@ -1,5 +1,15 @@
 import React, { useCallback, useState } from "react";
-import { View, StyleSheet, FlatList, TextInput, RefreshControl, Pressable, Alert, Share, Platform } from "react-native";
+import {
+  View,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  RefreshControl,
+  Pressable,
+  Alert,
+  Share,
+  Platform,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -7,7 +17,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import * as FileSystem from "expo-file-system";
+import { cacheDirectory, writeAsStringAsync } from "expo-file-system/legacy";
 import * as Sharing from "expo-sharing";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -17,7 +27,11 @@ import { FABMenu } from "@/components/FABMenu";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius, BrandColors, Shadows } from "@/constants/theme";
-import { ProductStorage, SettingsStorage } from "@/lib/storage";
+import {
+  ProductStorage,
+  SettingsStorage,
+  calculateRetailPrice,
+} from "@/lib/storage";
 import { checkShopifyStatus, exportToShopify } from "@/lib/shopify";
 import { Product, CATEGORIES, AppSettings } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -60,7 +74,7 @@ export default function ProductsScreen() {
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+    }, [loadData]),
   );
 
   const handleRefresh = async () => {
@@ -117,39 +131,50 @@ export default function ProductsScreen() {
     setSelectedIds(new Set(filteredProducts.map((p) => p.id)));
   };
 
-  const calculateRetailPrice = (wholesale: number): number => {
-    if (!settings) return wholesale * 2.5;
-    const raw = wholesale * settings.markupMultiplier;
-    switch (settings.roundingMode) {
-      case "up":
-        return Math.ceil(raw);
-      case "even":
-        const rounded = Math.ceil(raw);
-        return rounded % 2 === 0 ? rounded : rounded + 1;
-      default:
-        return Math.round(raw * 100) / 100;
-    }
-  };
-
   const generateShopifyCSV = async () => {
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
     if (selectedProducts.length === 0) return;
 
     const headers = [
-      "Title", "Handle", "Body (HTML)", "Vendor", "Product Category", "Type", "Tags",
-      "Published", "Option1 Name", "Option1 Value", "Option2 Name", "Option2 Value",
-      "Variant SKU", "Variant Grams", "Variant Inventory Tracker", "Variant Inventory Qty",
-      "Variant Inventory Policy", "Variant Fulfillment Service", "Variant Price",
-      "Variant Compare At Price", "Variant Requires Shipping", "Variant Taxable",
-      "Image Src", "Image Position", "Cost per item"
+      "Title",
+      "Handle",
+      "Body (HTML)",
+      "Vendor",
+      "Product Category",
+      "Type",
+      "Tags",
+      "Published",
+      "Option1 Name",
+      "Option1 Value",
+      "Option2 Name",
+      "Option2 Value",
+      "Variant SKU",
+      "Variant Grams",
+      "Variant Inventory Tracker",
+      "Variant Inventory Qty",
+      "Variant Inventory Policy",
+      "Variant Fulfillment Service",
+      "Variant Price",
+      "Variant Compare At Price",
+      "Variant Requires Shipping",
+      "Variant Taxable",
+      "Image Src",
+      "Image Position",
+      "Cost per item",
     ];
 
     const rows: string[][] = [];
 
     for (const product of selectedProducts) {
-      const handle = product.styleNumber.toLowerCase().replace(/[^a-z0-9]+/g, "-");
-      const retailPrice = product.retailPrice || calculateRetailPrice(product.wholesalePrice);
-      const colors = product.selectedColors?.length ? product.selectedColors : product.colors;
+      const handle = product.styleNumber
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-");
+      const retailPrice =
+        product.retailPrice ||
+        calculateRetailPrice(product.wholesalePrice, settings);
+      const colors = product.selectedColors?.length
+        ? product.selectedColors
+        : product.colors;
       const sizes = product.sizes || [];
       const packRatio = product.packRatio;
 
@@ -172,7 +197,7 @@ export default function ProductsScreen() {
           const row = [
             isFirstRow ? product.name : "",
             handle,
-            isFirstRow ? (product.notes || "") : "",
+            isFirstRow ? product.notes || "" : "",
             isFirstRow ? product.vendorName : "",
             isFirstRow ? product.category : "",
             isFirstRow ? product.category : "",
@@ -206,12 +231,16 @@ export default function ProductsScreen() {
     const csvContent = [
       headers.join(","),
       ...rows.map((row) =>
-        row.map((cell) => {
-          const escaped = cell.replace(/"/g, '""');
-          return escaped.includes(",") || escaped.includes('"') || escaped.includes("\n")
-            ? `"${escaped}"`
-            : escaped;
-        }).join(",")
+        row
+          .map((cell) => {
+            const escaped = cell.replace(/"/g, '""');
+            return escaped.includes(",") ||
+              escaped.includes('"') ||
+              escaped.includes("\n")
+              ? `"${escaped}"`
+              : escaped;
+          })
+          .join(","),
       ),
     ].join("\n");
 
@@ -220,7 +249,10 @@ export default function ProductsScreen() {
 
   const handleCSVExport = async () => {
     if (selectedIds.size === 0) {
-      Alert.alert("No Products Selected", "Please select at least one product to export.");
+      Alert.alert(
+        "No Products Selected",
+        "Please select at least one product to export.",
+      );
       return;
     }
 
@@ -232,9 +264,9 @@ export default function ProductsScreen() {
       if (!csv) return;
 
       const fileName = `shopify-products-${Date.now()}.csv`;
-      const filePath = `${FileSystem.cacheDirectory}${fileName}`;
+      const filePath = `${cacheDirectory}${fileName}`;
 
-      await FileSystem.writeAsStringAsync(filePath, csv);
+      await writeAsStringAsync(filePath, csv);
 
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(filePath, {
@@ -249,7 +281,10 @@ export default function ProductsScreen() {
       exitSelectionMode();
     } catch (error) {
       console.error("Error exporting:", error);
-      Alert.alert("Export Failed", "There was an error creating the export file.");
+      Alert.alert(
+        "Export Failed",
+        "There was an error creating the export file.",
+      );
     } finally {
       setIsExporting(false);
     }
@@ -257,7 +292,10 @@ export default function ProductsScreen() {
 
   const handleShopifyExport = async () => {
     if (selectedIds.size === 0) {
-      Alert.alert("No Products Selected", "Please select at least one product to export.");
+      Alert.alert(
+        "No Products Selected",
+        "Please select at least one product to export.",
+      );
       return;
     }
 
@@ -288,7 +326,9 @@ export default function ProductsScreen() {
       console.error("Shopify export error:", error);
       Alert.alert(
         "Export Failed",
-        error instanceof Error ? error.message : "There was an error exporting to Shopify.",
+        error instanceof Error
+          ? error.message
+          : "There was an error exporting to Shopify.",
       );
     } finally {
       setIsExportingShopify(false);
@@ -335,7 +375,9 @@ export default function ProductsScreen() {
         style={[
           styles.filterChip,
           {
-            backgroundColor: isSelected ? `${BrandColors.gold}15` : "transparent",
+            backgroundColor: isSelected
+              ? `${BrandColors.gold}15`
+              : "transparent",
             borderColor: isSelected ? BrandColors.gold : theme.border,
           },
         ]}
@@ -359,24 +401,47 @@ export default function ProductsScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       {selectionMode ? (
-        <View style={[styles.selectionBar, { paddingTop: headerHeight + Spacing.md, backgroundColor: theme.backgroundRoot }]}>
+        <View
+          style={[
+            styles.selectionBar,
+            {
+              paddingTop: headerHeight + Spacing.md,
+              backgroundColor: theme.backgroundRoot,
+            },
+          ]}
+        >
           <View style={styles.selectionBarContent}>
-            <Pressable onPress={exitSelectionMode} style={styles.selectionBarButton}>
+            <Pressable
+              onPress={exitSelectionMode}
+              style={styles.selectionBarButton}
+            >
               <Feather name="x" size={22} color={theme.text} />
             </Pressable>
             <ThemedText style={styles.selectionCount}>
               {selectedIds.size} selected
             </ThemedText>
             <Pressable onPress={selectAll} style={styles.selectionBarButton}>
-              <ThemedText style={[styles.selectAllText, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.selectAllText, { color: BrandColors.gold }]}
+              >
                 Select All
               </ThemedText>
             </Pressable>
           </View>
         </View>
       ) : (
-        <View style={[styles.searchContainer, { paddingTop: headerHeight + Spacing.md }]}>
-          <View style={[styles.searchBar, { backgroundColor: theme.backgroundDefault }]}>
+        <View
+          style={[
+            styles.searchContainer,
+            { paddingTop: headerHeight + Spacing.md },
+          ]}
+        >
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: theme.backgroundDefault },
+            ]}
+          >
             <Feather name="search" size={20} color={theme.textTertiary} />
             <TextInput
               style={[styles.searchInput, { color: theme.text }]}
@@ -426,22 +491,44 @@ export default function ProductsScreen() {
         ListEmptyComponent={
           <EmptyState
             image={require("../../assets/images/empty-products.png")}
-            title={searchQuery || selectedCategory ? "No Results" : "No Products Yet"}
+            title={
+              searchQuery || selectedCategory ? "No Results" : "No Products Yet"
+            }
             message={
               searchQuery || selectedCategory
                 ? "Try adjusting your search or filters."
                 : "Add your first product to start tracking your wholesale purchases."
             }
-            actionLabel={searchQuery || selectedCategory ? undefined : "Add Product"}
-            onAction={searchQuery || selectedCategory ? undefined : handleAddProduct}
+            actionLabel={
+              searchQuery || selectedCategory ? "Clear Filters" : "Add Product"
+            }
+            onAction={
+              searchQuery || selectedCategory
+                ? () => {
+                    setSearchQuery("");
+                    setSelectedCategory(null);
+                  }
+                : handleAddProduct
+            }
           />
         }
       />
 
       {selectionMode ? (
-        <View style={[styles.exportBar, { paddingBottom: tabBarHeight + Spacing.md }]}>
-          <ThemedText style={[styles.exportSelectionCount, { color: theme.textSecondary }]}>
-            {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""} selected
+        <View
+          style={[
+            styles.exportBar,
+            { paddingBottom: tabBarHeight + Spacing.md },
+          ]}
+        >
+          <ThemedText
+            style={[
+              styles.exportSelectionCount,
+              { color: theme.textSecondary },
+            ]}
+          >
+            {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""}{" "}
+            selected
           </ThemedText>
           <View style={styles.exportButtonRow}>
             <Button

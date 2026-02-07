@@ -21,12 +21,19 @@ interface SelectProps {
   error?: string;
 }
 
-export function Select({ label, placeholder = "Select...", options, value, onChange, error }: SelectProps) {
+export function Select({
+  label,
+  placeholder = "Select...",
+  options,
+  value,
+  onChange,
+  error,
+}: SelectProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const [isOpen, setIsOpen] = useState(false);
 
-  const selectedOption = options.find(opt => opt.value === value);
+  const selectedOption = options.find((opt) => opt.value === value);
 
   const handleSelect = (optionValue: string) => {
     onChange(optionValue);
@@ -40,7 +47,7 @@ export function Select({ label, placeholder = "Select...", options, value, onCha
           {label}
         </ThemedText>
       ) : null}
-      
+
       <Pressable
         style={[
           styles.select,
@@ -61,7 +68,7 @@ export function Select({ label, placeholder = "Select...", options, value, onCha
         </ThemedText>
         <Feather name="chevron-down" size={20} color={theme.textTertiary} />
       </Pressable>
-      
+
       {error ? (
         <ThemedText style={[styles.error, { color: BrandColors.error }]}>
           {error}
@@ -74,21 +81,18 @@ export function Select({ label, placeholder = "Select...", options, value, onCha
         animationType="fade"
         onRequestClose={() => setIsOpen(false)}
       >
-        <Pressable 
-          style={styles.overlay} 
-          onPress={() => setIsOpen(false)}
-        >
-          <View 
+        <Pressable style={styles.overlay} onPress={() => setIsOpen(false)}>
+          <View
             style={[
               styles.dropdown,
-              { 
+              {
                 backgroundColor: theme.backgroundRoot,
                 marginBottom: insets.bottom + Spacing.lg,
               },
               Shadows.card,
             ]}
           >
-            <View style={styles.dropdownHeader}>
+            <View style={[styles.dropdownHeader, { borderBottomColor: theme.border }]}>
               <ThemedText style={styles.dropdownTitle}>
                 {label || "Select Option"}
               </ThemedText>
@@ -96,7 +100,7 @@ export function Select({ label, placeholder = "Select...", options, value, onCha
                 <Feather name="x" size={24} color={theme.text} />
               </Pressable>
             </View>
-            
+
             <FlatList
               data={options}
               keyExtractor={(item) => item.value}
@@ -104,14 +108,20 @@ export function Select({ label, placeholder = "Select...", options, value, onCha
                 <Pressable
                   style={[
                     styles.option,
-                    item.value === value && { backgroundColor: `${BrandColors.gold}10` },
+                    { borderBottomColor: theme.border },
+                    item.value === value && {
+                      backgroundColor: `${BrandColors.gold}10`,
+                    },
                   ]}
                   onPress={() => handleSelect(item.value)}
                 >
                   <ThemedText
                     style={[
                       styles.optionText,
-                      item.value === value && { color: BrandColors.gold, fontWeight: "600" },
+                      item.value === value && {
+                        color: BrandColors.gold,
+                        fontWeight: "600",
+                      },
                     ]}
                   >
                     {item.label}
@@ -174,7 +184,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: Spacing.lg,
     borderBottomWidth: 1,
-    borderBottomColor: "#E8E8E8",
   },
   dropdownTitle: {
     fontSize: 17,
@@ -189,7 +198,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: Spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E8E8E8",
   },
   optionText: {
     fontSize: 16,
