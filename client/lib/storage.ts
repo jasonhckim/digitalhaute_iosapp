@@ -5,6 +5,7 @@ const PRODUCTS_KEY = "@digitalhaute/products";
 const VENDORS_KEY = "@digitalhaute/vendors";
 const BUDGETS_KEY = "@digitalhaute/budgets";
 const SETTINGS_KEY = "@digitalhaute/settings";
+const EVENTS_KEY = "@digitalhaute/events";
 
 const DEFAULT_SETTINGS: AppSettings = {
   markupMultiplier: 2.5,
@@ -201,6 +202,40 @@ export const BudgetStorage = {
     }
 
     await AsyncStorage.setItem(BUDGETS_KEY, JSON.stringify(budgets));
+  },
+};
+
+export const EventStorage = {
+  async getAll(): Promise<string[]> {
+    try {
+      const data = await AsyncStorage.getItem(EVENTS_KEY);
+      return data ? JSON.parse(data) : [];
+    } catch (error) {
+      console.error("Error getting events:", error);
+      return [];
+    }
+  },
+
+  async add(event: string): Promise<string[]> {
+    const events = await this.getAll();
+    // Case-insensitive deduplication
+    const exists = events.some(
+      (e) => e.toLowerCase() === event.trim().toLowerCase(),
+    );
+    if (!exists && event.trim()) {
+      events.unshift(event.trim());
+      await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(events));
+    }
+    return events;
+  },
+
+  async delete(event: string): Promise<string[]> {
+    const events = await this.getAll();
+    const filtered = events.filter(
+      (e) => e.toLowerCase() !== event.toLowerCase(),
+    );
+    await AsyncStorage.setItem(EVENTS_KEY, JSON.stringify(filtered));
+    return filtered;
   },
 };
 

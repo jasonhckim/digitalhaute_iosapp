@@ -23,18 +23,22 @@ import * as Sharing from "expo-sharing";
 import { ThemedText } from "@/components/ThemedText";
 import { ProductCard } from "@/components/ProductCard";
 import { EmptyState } from "@/components/EmptyState";
-import { FABMenu } from "@/components/FABMenu";
 import { Button } from "@/components/Button";
+import { UpgradePromptModal } from "@/components/UpgradePromptModal";
 import { useTheme } from "@/hooks/useTheme";
+import { useAuth } from "@/contexts/AuthContext";
 import { Spacing, BorderRadius, BrandColors, Shadows } from "@/constants/theme";
 import {
   ProductStorage,
+  VendorStorage,
   SettingsStorage,
   calculateRetailPrice,
 } from "@/lib/storage";
 import { checkShopifyStatus, exportToShopify } from "@/lib/shopify";
-import { Product, CATEGORIES, AppSettings } from "@/types";
+import { Product, Vendor, CATEGORIES, AppSettings } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { hasGrowthFeature } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -48,21 +52,30 @@ export default function ProductsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedVendor, setSelectedVendor] = useState<string | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const { requireAuth } = useRequireAuth();
+  const { user } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
   const [isExportingShopify, setIsExportingShopify] = useState(false);
+  const [showShopifyUpgradeModal, setShowShopifyUpgradeModal] = useState(false);
+
+  const canUseShopifyExport = hasGrowthFeature(user?.subscriptionPlan);
 
   const loadData = useCallback(async () => {
     try {
-      const [productsData, settingsData] = await Promise.all([
+      const [productsData, vendorsData, settingsData] = await Promise.all([
         ProductStorage.getAll(),
+        VendorStorage.getAll(),
         SettingsStorage.get(),
       ]);
       setProducts(productsData);
+      setVendors(vendorsData);
       setSettings(settingsData);
     } catch (error) {
       console.error("Error loading products:", error);
@@ -84,22 +97,11 @@ export default function ProductsScreen() {
     setRefreshing(false);
   };
 
-  const fabMenuItems = [
-    {
-      icon: "zap" as const,
-      label: "Quick Add (Scan Label)",
-      onPress: () => navigation.navigate("QuickAddProduct"),
-    },
-    {
-      icon: "edit" as const,
-      label: "Manual Entry",
-      onPress: () => navigation.navigate("AddProduct"),
-    },
-  ];
-
   const handleAddProduct = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    navigation.navigate("AddProduct");
+    requireAuth(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      navigation.navigate("QuickAddProduct");
+    });
   };
 
   const toggleSelection = (id: string) => {
@@ -299,6 +301,11 @@ export default function ProductsScreen() {
       return;
     }
 
+    if (!canUseShopifyExport) {
+      setShowShopifyUpgradeModal(true);
+      return;
+    }
+
     setIsExportingShopify(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -345,7 +352,10 @@ export default function ProductsScreen() {
     const matchesCategory =
       selectedCategory === null || product.category === selectedCategory;
 
-    return matchesSearch && matchesCategory;
+    const matchesVendor =
+      selectedVendor === null || product.vendorId === selectedVendor;
+
+    return matchesSearch && matchesCategory && matchesVendor;
   });
 
   const renderProduct = ({ item }: { item: Product }) => (
@@ -467,6 +477,60 @@ export default function ProductsScreen() {
             contentContainerStyle={styles.filterContent}
             renderItem={renderFilterChip}
           />
+
+          {vendors.length > 0 ? (
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={vendors}
+              keyExtractor={(item) => item.id}
+              style={styles.vendorFilterList}
+              contentContainerStyle={styles.filterContent}
+              renderItem={({ item }) => {
+                const isSelected = selectedVendor === item.id;
+                return (
+                  <Pressable
+                    style={[
+                      styles.filterChip,
+                      {
+                        backgroundColor: isSelected
+                          ? `${BrandColors.gold}15`
+                          : "transparent",
+                        borderColor: isSelected
+                          ? BrandColors.gold
+                          : theme.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedVendor(isSelected ? null : item.id);
+                    }}
+                  >
+                    <Feather
+                      name="briefcase"
+                      size={12}
+                      color={
+                        isSelected ? BrandColors.gold : theme.textSecondary
+                      }
+                      style={{ marginRight: 4 }}
+                    />
+                    <ThemedText
+                      style={[
+                        styles.filterText,
+                        {
+                          color: isSelected
+                            ? BrandColors.gold
+                            : theme.textSecondary,
+                        },
+                      ]}
+                    >
+                      {item.name}
+                    </ThemedText>
+                  </Pressable>
+                );
+              }}
+            />
+          ) : null}
         </View>
       )}
 
@@ -492,21 +556,26 @@ export default function ProductsScreen() {
           <EmptyState
             image={require("../../assets/images/empty-products.png")}
             title={
-              searchQuery || selectedCategory ? "No Results" : "No Products Yet"
+              searchQuery || selectedCategory || selectedVendor
+                ? "No Results"
+                : "No Products Yet"
             }
             message={
-              searchQuery || selectedCategory
+              searchQuery || selectedCategory || selectedVendor
                 ? "Try adjusting your search or filters."
-                : "Add your first product to start tracking your wholesale purchases."
+                : "Scan your first label to start tracking your wholesale purchases."
             }
             actionLabel={
-              searchQuery || selectedCategory ? "Clear Filters" : "Add Product"
+              searchQuery || selectedCategory || selectedVendor
+                ? "Clear Filters"
+                : "Scan Label"
             }
             onAction={
-              searchQuery || selectedCategory
+              searchQuery || selectedCategory || selectedVendor
                 ? () => {
                     setSearchQuery("");
                     setSelectedCategory(null);
+                    setSelectedVendor(null);
                   }
                 : handleAddProduct
             }
@@ -518,7 +587,10 @@ export default function ProductsScreen() {
         <View
           style={[
             styles.exportBar,
-            { paddingBottom: tabBarHeight + Spacing.md },
+            {
+              paddingBottom: tabBarHeight + Spacing.md,
+              backgroundColor: theme.backgroundRoot,
+            },
           ]}
         >
           <ThemedText
@@ -534,32 +606,47 @@ export default function ProductsScreen() {
             <Button
               onPress={handleCSVExport}
               style={styles.exportButtonHalf}
-              disabled={isExporting || isExportingShopify}
+              disabled={isExporting}
             >
               <View style={styles.exportButtonContent}>
                 <Feather name="download" size={18} color="#fff" />
                 <ThemedText style={styles.exportButtonText}>
-                  {isExporting ? "Exporting..." : "CSV"}
+                  {isExporting ? "Exporting..." : "Export as CSV"}
                 </ThemedText>
               </View>
             </Button>
             <Button
               onPress={handleShopifyExport}
               style={styles.exportButtonHalf}
-              disabled={isExporting || isExportingShopify}
+              disabled={isExportingShopify}
             >
               <View style={styles.exportButtonContent}>
                 <Feather name="shopping-bag" size={18} color="#fff" />
                 <ThemedText style={styles.exportButtonText}>
-                  {isExportingShopify ? "Exporting..." : "Shopify"}
+                  {isExportingShopify ? "Exporting..." : "Export to Shopify"}
                 </ThemedText>
               </View>
             </Button>
           </View>
         </View>
-      ) : (
-        <FABMenu items={fabMenuItems} bottom={tabBarHeight} />
-      )}
+      ) : null}
+
+      <UpgradePromptModal
+        visible={showShopifyUpgradeModal}
+        featureId="shopifyUpload"
+        onDismiss={() => setShowShopifyUpgradeModal(false)}
+        onUpgrade={() => {
+          setShowShopifyUpgradeModal(false);
+          // Navigate to Account tab > Billing screen
+          const tabNav = navigation.getParent()?.getParent();
+          if (tabNav) {
+            (tabNav as { navigate: (a: string, b?: object) => void }).navigate(
+              "AccountTab",
+              { screen: "Billing" },
+            );
+          }
+        }}
+      />
     </View>
   );
 }
@@ -586,6 +673,10 @@ const styles = StyleSheet.create({
   },
   filterList: {
     marginTop: Spacing.md,
+    marginHorizontal: -Spacing.lg,
+  },
+  vendorFilterList: {
+    marginTop: Spacing.sm,
     marginHorizontal: -Spacing.lg,
   },
   filterContent: {
@@ -630,7 +721,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    backgroundColor: "#fff",
     ...Shadows.card,
   },
   exportSelectionCount: {
@@ -641,6 +731,12 @@ const styles = StyleSheet.create({
   exportButtonRow: {
     flexDirection: "row",
     gap: Spacing.sm,
+  },
+  exportButton: {
+    flex: 1,
+    backgroundColor: BrandColors.gold,
+    height: 52,
+    borderRadius: BorderRadius.md,
   },
   exportButtonHalf: {
     flex: 1,

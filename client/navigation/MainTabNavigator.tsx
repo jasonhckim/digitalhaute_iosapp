@@ -1,24 +1,60 @@
 import React from "react";
+import { StyleSheet, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import { Platform, StyleSheet } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import DashboardStackNavigator from "@/navigation/DashboardStackNavigator";
 import ProductsStackNavigator from "@/navigation/ProductsStackNavigator";
 import VendorsStackNavigator from "@/navigation/VendorsStackNavigator";
 import AccountStackNavigator from "@/navigation/AccountStackNavigator";
+import { FABMenu } from "@/components/FABMenu";
 import { useTheme } from "@/hooks/useTheme";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { BrandColors } from "@/constants/theme";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 export type MainTabParamList = {
   HomeTab: undefined;
   ProductsTab: undefined;
+  AddTab: undefined;
   VendorsTab: undefined;
-  AccountTab: undefined;
+  AccountTab: { screen?: string } | undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+
+function PlaceholderScreen() {
+  return null;
+}
+
+function CenterFABButton() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { requireAuth } = useRequireAuth();
+
+  const fabMenuItems = [
+    {
+      icon: "layers" as const,
+      label: "Multiple Product Scan",
+      onPress: () => requireAuth(() => navigation.navigate("MultiScan")),
+    },
+    {
+      icon: "zap" as const,
+      label: "Quick Add (Scan Label)",
+      onPress: () => requireAuth(() => navigation.navigate("QuickAddProduct")),
+    },
+    {
+      icon: "edit" as const,
+      label: "Manual Entry",
+      onPress: () => requireAuth(() => navigation.navigate("AddProduct")),
+    },
+  ];
+
+  return <FABMenu items={fabMenuItems} bottom={0} centerTab />;
+}
 
 export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
@@ -67,6 +103,20 @@ export default function MainTabNavigator() {
           tabBarIcon: ({ color, size }) => (
             <Feather name="package" size={size} color={color} />
           ),
+        }}
+      />
+      <Tab.Screen
+        name="AddTab"
+        component={PlaceholderScreen}
+        options={{
+          tabBarLabel: () => null,
+          tabBarIcon: () => null,
+          tabBarButton: () => <CenterFABButton />,
+        }}
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+          },
         }}
       />
       <Tab.Screen

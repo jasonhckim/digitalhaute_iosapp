@@ -1,5 +1,11 @@
 import React from "react";
-import { View, StyleSheet, Pressable, Image } from "react-native";
+import {
+  View,
+  StyleSheet,
+  Pressable,
+  Image,
+  ActivityIndicator,
+} from "react-native";
 import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
@@ -84,6 +90,22 @@ export function ProductCard({
           <ThemedText style={styles.name} numberOfLines={1}>
             {product.name}
           </ThemedText>
+
+          {product.scanStatus === "processing" ? (
+            <View style={styles.scanBadge}>
+              <ActivityIndicator size={10} color={BrandColors.gold} />
+              <ThemedText style={styles.scanBadgeText}>
+                Processing...
+              </ThemedText>
+            </View>
+          ) : product.scanStatus === "failed" ? (
+            <View style={styles.scanBadge}>
+              <Feather name="alert-circle" size={10} color="#e74c3c" />
+              <ThemedText style={[styles.scanBadgeText, { color: "#e74c3c" }]}>
+                Scan failed
+              </ThemedText>
+            </View>
+          ) : null}
 
           <ThemedText
             style={[styles.vendor, { color: theme.textSecondary }]}
@@ -176,6 +198,17 @@ const styles = StyleSheet.create({
   vendor: {
     fontSize: 14,
     marginBottom: Spacing.xs,
+  },
+  scanBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 2,
+  },
+  scanBadgeText: {
+    fontSize: 11,
+    fontWeight: "500",
+    color: BrandColors.gold,
   },
   metaRow: {
     flexDirection: "row",

@@ -6,6 +6,8 @@ export type ProductStatus =
   | "received"
   | "cancelled";
 
+export type ScanStatus = "pending" | "processing" | "complete" | "failed";
+
 export interface Product {
   id: string;
   name: string;
@@ -26,9 +28,12 @@ export interface Product {
   receivedDate?: string;
   season: string;
   collection?: string;
+  event?: string;
   notes?: string;
   status: ProductStatus;
+  scanStatus?: ScanStatus;
   imageUri?: string;
+  modelImageUri?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +50,7 @@ export interface Vendor {
   email?: string;
   phone?: string;
   website?: string;
+  address?: string;
   paymentTerms?: string;
   packRatio?: PackRatio;
   notes?: string;
@@ -133,4 +139,25 @@ export interface ShopifyStatus {
   connected: boolean;
   shopDomain?: string;
   connectedAt?: string;
+}
+
+export type UserRole = "owner" | "buyer" | "assistant";
+
+export type SubscriptionPlan = "starter" | "growth" | "vip";
+
+export interface AuthUser {
+  id: string;
+  businessName: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  subscriptionPlan?: SubscriptionPlan;
+  createdAt: string;
+}
+
+export interface NotificationSettings {
+  deliveryAlerts: boolean;
+  budgetAlerts: boolean;
+  orderStatusUpdates: boolean;
+  weeklySummary: boolean;
 }
