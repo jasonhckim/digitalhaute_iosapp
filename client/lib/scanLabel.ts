@@ -11,7 +11,7 @@ interface LabelScanResult {
   notes?: string;
 }
 
-const SYSTEM_PROMPT = `You are an expert at reading wholesale fashion product labels and hang tags from trade shows and showrooms. Extract information from the label image and return a JSON object with the following fields (use null for fields you cannot determine):
+const SCAN_PROMPT = `You are an expert at reading wholesale fashion product labels and hang tags from trade shows and showrooms. Extract information from this label image and return a JSON object with the following fields (use null for fields you cannot determine):
 {
   "styleName": "Product name or style name",
   "styleNumber": "Style number, SKU, or product code",
@@ -38,55 +38,53 @@ CRITICAL - This is for WHOLESALE fashion buying:
 export async function scanLabelImage(
   base64Data: string,
 ): Promise<LabelScanResult | null> {
-  const apiKey = process.env.EXPO_PUBLIC_OPENAI_API_KEY;
+  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
   if (!apiKey) {
-    console.error("EXPO_PUBLIC_OPENAI_API_KEY is not set");
+    console.error("EXPO_PUBLIC_GEMINI_API_KEY is not set");
     return null;
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/jpeg;base64,${base64Data}`,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: "image/jpeg",
+                    data: base64Data,
+                  },
                 },
-              },
-              {
-                type: "text",
-                text: "Please extract all product information from this label/hang tag image.",
-              },
-            ],
+                { text: SCAN_PROMPT },
+              ],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 1024,
           },
-        ],
-        max_completion_tokens: 1024,
-      }),
-    });
+        }),
+      },
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("OpenAI API error:", response.status, errorText);
+      console.error("Gemini API error:", response.status, errorText);
       return null;
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!content) {
-      console.error("No content in OpenAI response");
+      console.error("No content in Gemini response");
       return null;
     }
 
