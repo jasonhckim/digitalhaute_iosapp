@@ -20,6 +20,7 @@ interface ProductCardProps {
   onLongPress?: () => void;
   isSelected?: boolean;
   selectionMode?: boolean;
+  gridMode?: boolean;
 }
 
 export function ProductCard({
@@ -28,6 +29,7 @@ export function ProductCard({
   onLongPress,
   isSelected,
   selectionMode,
+  gridMode = false,
 }: ProductCardProps) {
   const { theme } = useTheme();
 
@@ -40,25 +42,63 @@ export function ProductCard({
     }).format(value);
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    });
-  };
+  if (gridMode) {
+    return (
+      <Pressable
+        style={({ pressed }) => [
+          styles.gridCard,
+          {
+            opacity: pressed ? 0.9 : 1,
+            borderWidth: isSelected ? 2 : 0,
+            borderColor: isSelected ? BrandColors.camel : "transparent",
+          },
+        ]}
+        onPress={onPress}
+        onLongPress={onLongPress}
+      >
+        {selectionMode ? (
+          <View style={styles.gridCheckbox}>
+            <View
+              style={[
+                styles.checkbox,
+                isSelected && styles.checkboxSelected,
+              ]}
+            >
+              {isSelected ? (
+                <Feather name="check" size={14} color="#fff" />
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+        {product.imageUri ? (
+          <Image
+            source={{ uri: product.imageUri }}
+            style={styles.gridImage}
+          />
+        ) : (
+          <View
+            style={[
+              styles.gridImagePlaceholder,
+              { backgroundColor: BrandColors.creamDarker },
+            ]}
+          >
+            <Feather name="image" size={28} color={BrandColors.sand} />
+          </View>
+        )}
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.card,
         {
-          backgroundColor: theme.backgroundRoot,
+          backgroundColor: BrandColors.creamDark,
           opacity: pressed ? 0.95 : 1,
           borderWidth: isSelected ? 2 : 0,
-          borderColor: isSelected ? BrandColors.gold : "transparent",
+          borderColor: isSelected ? BrandColors.camel : "transparent",
         },
-        Shadows.card,
       ]}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -79,10 +119,10 @@ export function ProductCard({
           <View
             style={[
               styles.imagePlaceholder,
-              { backgroundColor: theme.backgroundSecondary },
+              { backgroundColor: BrandColors.creamDarker },
             ]}
           >
-            <Feather name="image" size={24} color={theme.textTertiary} />
+            <Feather name="image" size={24} color={BrandColors.sand} />
           </View>
         )}
 
@@ -93,7 +133,7 @@ export function ProductCard({
 
           {product.scanStatus === "processing" ? (
             <View style={styles.scanBadge}>
-              <ActivityIndicator size={10} color={BrandColors.gold} />
+              <ActivityIndicator size={10} color={BrandColors.camel} />
               <ThemedText style={styles.scanBadgeText}>
                 Processing...
               </ThemedText>
@@ -123,11 +163,11 @@ export function ProductCard({
             <View
               style={[
                 styles.categoryBadge,
-                { backgroundColor: `${BrandColors.gold}15` },
+                { backgroundColor: `${BrandColors.camel}15` },
               ]}
             >
               <ThemedText
-                style={[styles.categoryText, { color: BrandColors.gold }]}
+                style={[styles.categoryText, { color: BrandColors.camel }]}
               >
                 {product.category}
               </ThemedText>
@@ -136,7 +176,7 @@ export function ProductCard({
 
           <View style={styles.bottomRow}>
             <View style={styles.priceContainer}>
-              <ThemedText style={[styles.price, { color: BrandColors.gold }]}>
+              <ThemedText style={[styles.price, { color: BrandColors.camel }]}>
                 {formatCurrency(product.wholesalePrice)}
               </ThemedText>
               <ThemedText
@@ -147,15 +187,6 @@ export function ProductCard({
             </View>
 
             <StatusBadge status={product.status} />
-          </View>
-
-          <View style={styles.deliveryRow}>
-            <Feather name="calendar" size={12} color={theme.textTertiary} />
-            <ThemedText
-              style={[styles.deliveryText, { color: theme.textTertiary }]}
-            >
-              {formatDate(product.deliveryDate)}
-            </ThemedText>
           </View>
         </View>
       </View>
@@ -177,7 +208,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 100,
     borderRadius: BorderRadius.sm,
-    backgroundColor: "#f0f0f0",
+    backgroundColor: BrandColors.creamDarker,
   },
   imagePlaceholder: {
     width: 80,
@@ -208,7 +239,7 @@ const styles = StyleSheet.create({
   scanBadgeText: {
     fontSize: 11,
     fontWeight: "500",
-    color: BrandColors.gold,
+    color: BrandColors.camel,
   },
   metaRow: {
     flexDirection: "row",
@@ -246,25 +277,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: Spacing.xs,
   },
-  deliveryRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  deliveryText: {
-    fontSize: 11,
-    marginLeft: 4,
-  },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: BrandColors.gold,
+    borderColor: BrandColors.camel,
     marginRight: Spacing.sm,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxSelected: {
-    backgroundColor: BrandColors.gold,
+    backgroundColor: BrandColors.camel,
+  },
+  // Grid mode styles
+  gridCard: {
+    flex: 1,
+    aspectRatio: 0.85,
+    borderRadius: BorderRadius.md,
+    overflow: "hidden",
+    margin: Spacing.xs,
+  },
+  gridCheckbox: {
+    position: "absolute",
+    top: Spacing.sm,
+    right: Spacing.sm,
+    zIndex: 1,
+  },
+  gridImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: BorderRadius.md,
+  },
+  gridImagePlaceholder: {
+    width: "100%",
+    height: "100%",
+    borderRadius: BorderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

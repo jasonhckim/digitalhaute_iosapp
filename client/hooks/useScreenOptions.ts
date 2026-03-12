@@ -3,6 +3,7 @@ import { NativeStackNavigationOptions } from "@react-navigation/native-stack";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 
 import { useTheme } from "@/hooks/useTheme";
+import { BrandColors } from "@/constants/theme";
 
 interface UseScreenOptionsParams {
   transparent?: boolean;
@@ -16,20 +17,20 @@ export function useScreenOptions({
   return {
     headerTitleAlign: "center",
     headerTransparent: transparent,
-    headerBlurEffect: isDark ? "dark" : "light",
-    headerTintColor: theme.text,
+    headerBlurEffect: "light",
+    headerTintColor: BrandColors.textPrimary,
     headerStyle: {
       backgroundColor: Platform.select({
         ios: undefined,
-        android: theme.backgroundRoot,
-        web: theme.backgroundRoot,
+        android: BrandColors.cream,
+        web: BrandColors.cream,
       }),
     },
     gestureEnabled: true,
     gestureDirection: "horizontal",
     fullScreenGestureEnabled: isLiquidGlassAvailable() ? false : true,
     contentStyle: {
-      backgroundColor: theme.backgroundRoot,
+      backgroundColor: BrandColors.cream,
     },
   };
 }

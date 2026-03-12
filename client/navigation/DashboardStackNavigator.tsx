@@ -2,7 +2,6 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
 import DashboardScreen from "@/screens/DashboardScreen";
-import { HeaderTitle } from "@/components/HeaderTitle";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type DashboardStackParamList = {
@@ -20,7 +19,7 @@ export default function DashboardStackNavigator() {
         name="Dashboard"
         component={DashboardScreen}
         options={{
-          headerTitle: () => <HeaderTitle title="Digital Haute" />,
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

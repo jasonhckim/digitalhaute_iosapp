@@ -7,7 +7,7 @@ import {
   Linking,
   Pressable,
 } from "react-native";
-import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +19,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { Button } from "@/components/Button";
 import { SectionHeader } from "@/components/SectionHeader";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
+import { Spacing, BorderRadius, Shadows, BrandColors, FontFamilies } from "@/constants/theme";
 import { VendorStorage, ProductStorage } from "@/lib/storage";
 import { Vendor, Product } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -41,6 +41,12 @@ export default function VendorDetailScreen() {
   useEffect(() => {
     loadData();
   }, [route.params.vendorId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadData();
+    }, [route.params.vendorId])
+  );
 
   const loadData = async () => {
     try {
@@ -131,9 +137,9 @@ export default function VendorDetailScreen() {
     >
       <View style={styles.header}>
         <View
-          style={[styles.avatar, { backgroundColor: `${BrandColors.gold}15` }]}
+          style={[styles.avatar, { backgroundColor: `${BrandColors.camel}15` }]}
         >
-          <ThemedText style={[styles.avatarText, { color: BrandColors.gold }]}>
+          <ThemedText style={[styles.avatarText, { color: BrandColors.camel }]}>
             {vendor.name.charAt(0).toUpperCase()}
           </ThemedText>
         </View>
@@ -144,11 +150,10 @@ export default function VendorDetailScreen() {
         <View
           style={[
             styles.statCard,
-            { backgroundColor: theme.backgroundRoot },
-            Shadows.card,
+            { backgroundColor: BrandColors.creamDark },
           ]}
         >
-          <ThemedText style={[styles.statValue, { color: BrandColors.gold }]}>
+          <ThemedText style={[styles.statValue, { color: BrandColors.camel }]}>
             {activeProducts.length}
           </ThemedText>
           <ThemedText
@@ -160,11 +165,10 @@ export default function VendorDetailScreen() {
         <View
           style={[
             styles.statCard,
-            { backgroundColor: theme.backgroundRoot },
-            Shadows.card,
+            { backgroundColor: BrandColors.creamDark },
           ]}
         >
-          <ThemedText style={[styles.statValue, { color: BrandColors.gold }]}>
+          <ThemedText style={[styles.statValue, { color: BrandColors.camel }]}>
             {formatCurrency(totalSpend)}
           </ThemedText>
           <ThemedText
@@ -178,8 +182,7 @@ export default function VendorDetailScreen() {
       <View
         style={[
           styles.card,
-          { backgroundColor: theme.backgroundRoot },
-          Shadows.card,
+          { backgroundColor: BrandColors.creamDark },
         ]}
       >
         {vendor.contactName ? (
@@ -277,8 +280,7 @@ export default function VendorDetailScreen() {
         <View
           style={[
             styles.card,
-            { backgroundColor: theme.backgroundRoot },
-            Shadows.card,
+            { backgroundColor: BrandColors.creamDark },
           ]}
         >
           <ThemedText
@@ -304,6 +306,14 @@ export default function VendorDetailScreen() {
           ))}
         </>
       ) : null}
+
+      <Button
+        variant="primary"
+        onPress={() => navigation.navigate("EditVendor", { vendorId: vendor.id })}
+        style={styles.editButton}
+      >
+        Edit Vendor
+      </Button>
 
       <Button
         variant="secondary"
@@ -343,7 +353,8 @@ const styles = StyleSheet.create({
   },
   vendorName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontFamily: FontFamilies.serif,
+    color: BrandColors.textPrimary,
   },
   statsRow: {
     flexDirection: "row",
@@ -386,6 +397,9 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  editButton: {
+    marginTop: Spacing.xl,
   },
   deleteButton: {
     marginTop: Spacing.md,

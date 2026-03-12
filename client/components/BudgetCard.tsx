@@ -1,27 +1,34 @@
 import React from "react";
 import { View, StyleSheet, Pressable } from "react-native";
+import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { BorderRadius, Spacing, Shadows, BrandColors } from "@/constants/theme";
+import {
+  BorderRadius,
+  Spacing,
+  Shadows,
+  BrandColors,
+  FontFamilies,
+} from "@/constants/theme";
 
 interface BudgetCardProps {
   title: string;
   budget: number;
   spent: number;
   onPress?: () => void;
+  onEdit?: () => void;
 }
 
-export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
+export function BudgetCard({ title, budget, spent, onPress, onEdit }: BudgetCardProps) {
   const { theme } = useTheme();
   const remaining = budget - spent;
   const percentage = budget > 0 ? Math.min((spent / budget) * 100, 100) : 0;
 
   const getProgressColor = () => {
     if (percentage >= 100) return BrandColors.error;
-    if (percentage >= 90) return "#F59E0B";
-    if (percentage >= 75) return "#F59E0B";
-    return BrandColors.gold;
+    if (percentage >= 75) return "#D4A574";
+    return BrandColors.camel;
   };
 
   const formatCurrency = (value: number) => {
@@ -34,58 +41,19 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
   };
 
   return (
-    <Pressable
-      style={({ pressed }) => [
-        styles.card,
-        { backgroundColor: theme.backgroundRoot, opacity: pressed ? 0.9 : 1 },
-        Shadows.card,
-      ]}
-      onPress={onPress}
-    >
-      <ThemedText style={styles.title}>{title}</ThemedText>
-
-      <View style={styles.amounts}>
-        <View>
-          <ThemedText
-            style={[styles.amountLabel, { color: theme.textTertiary }]}
-          >
-            Budget
-          </ThemedText>
-          <ThemedText style={[styles.amount, { color: BrandColors.gold }]}>
-            {formatCurrency(budget)}
-          </ThemedText>
-        </View>
-        <View>
-          <ThemedText
-            style={[styles.amountLabel, { color: theme.textTertiary }]}
-          >
-            Spent
-          </ThemedText>
-          <ThemedText style={styles.amount}>{formatCurrency(spent)}</ThemedText>
-        </View>
-        <View>
-          <ThemedText
-            style={[styles.amountLabel, { color: theme.textTertiary }]}
-          >
-            Remaining
-          </ThemedText>
-          <ThemedText
-            style={[
-              styles.amount,
-              {
-                color: remaining >= 0 ? BrandColors.success : BrandColors.error,
-              },
-            ]}
-          >
-            {formatCurrency(remaining)}
-          </ThemedText>
-        </View>
+    <View style={styles.wrapper}>
+      <View style={styles.titleRow}>
+        <ThemedText style={styles.title}>{title}</ThemedText>
+        {onEdit && (
+          <Pressable onPress={onEdit} hitSlop={8} style={styles.editButton}>
+            <Feather name="settings" size={16} color={BrandColors.textSecondary} />
+          </Pressable>
+        )}
       </View>
-
       <View
         style={[
           styles.progressBackground,
-          { backgroundColor: theme.backgroundSecondary },
+          { backgroundColor: BrandColors.creamDarker },
         ]}
       >
         <View
@@ -96,50 +64,90 @@ export function BudgetCard({ title, budget, spent, onPress }: BudgetCardProps) {
         />
       </View>
 
-      <ThemedText style={[styles.percentage, { color: theme.textTertiary }]}>
-        {percentage.toFixed(0)}% used
-      </ThemedText>
-    </Pressable>
+      <View style={styles.amounts}>
+        <View style={[styles.statBox, { backgroundColor: BrandColors.creamDark }]}>
+          <ThemedText style={styles.statValue}>
+            {formatCurrency(budget)}
+          </ThemedText>
+          <ThemedText
+            style={[styles.statLabel, { color: theme.textSecondary }]}
+          >
+            Budget
+          </ThemedText>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: BrandColors.creamDark }]}>
+          <ThemedText style={styles.statValue}>
+            {formatCurrency(spent)}
+          </ThemedText>
+          <ThemedText
+            style={[styles.statLabel, { color: theme.textSecondary }]}
+          >
+            Spent
+          </ThemedText>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: BrandColors.creamDark }]}>
+          <ThemedText style={styles.statValue}>
+            {formatCurrency(remaining)}
+          </ThemedText>
+          <ThemedText
+            style={[styles.statLabel, { color: theme.textSecondary }]}
+          >
+            Remaining
+          </ThemedText>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: 280,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginRight: Spacing.md,
+  wrapper: {
+    marginBottom: Spacing.md,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: Spacing.sm,
   },
   title: {
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "600",
-    marginBottom: Spacing.md,
+    color: BrandColors.textPrimary,
+    flex: 1,
+  },
+  editButton: {
+    padding: Spacing.xs,
   },
   amounts: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
   },
-  amountLabel: {
-    fontSize: 11,
-    marginBottom: 2,
+  statBox: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.sm,
+    alignItems: "center",
   },
-  amount: {
+  statValue: {
     fontSize: 15,
     fontWeight: "600",
+    color: BrandColors.textPrimary,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
   },
   progressBackground: {
-    height: 6,
-    borderRadius: 3,
+    height: 8,
+    borderRadius: 4,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    borderRadius: 3,
-  },
-  percentage: {
-    fontSize: 12,
-    marginTop: Spacing.sm,
-    textAlign: "right",
+    borderRadius: 4,
   },
 });

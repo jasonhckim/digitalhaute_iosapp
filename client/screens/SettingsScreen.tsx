@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -8,8 +8,8 @@ import {
   Linking,
   Alert,
 } from "react-native";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -19,46 +19,21 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { SettingsStorage } from "@/lib/storage";
-import { AppSettings, RoundingMode, ShopifyStatus } from "@/types";
-import { checkShopifyStatus } from "@/lib/shopify";
+import { AppSettings, RoundingMode } from "@/types";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
 
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [markupText, setMarkupText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [shopifyStatus, setShopifyStatus] = useState<ShopifyStatus | null>(
-    null,
-  );
-  const [shopifyLoading, setShopifyLoading] = useState(true);
-
   useEffect(() => {
     loadSettings();
   }, []);
-
-  const loadShopifyStatus = useCallback(async () => {
-    setShopifyLoading(true);
-    try {
-      const status = await checkShopifyStatus();
-      setShopifyStatus(status);
-    } catch {
-      setShopifyStatus(null);
-    } finally {
-      setShopifyLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadShopifyStatus();
-    }, [loadShopifyStatus]),
-  );
 
   const loadSettings = async () => {
     const loaded = await SettingsStorage.get();
@@ -136,8 +111,8 @@ export default function SettingsScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: headerHeight + Spacing.xl,
-            paddingBottom: insets.bottom + Spacing.xl,
+            paddingTop: Spacing.xl,
+            paddingBottom: tabBarHeight + Spacing.xl,
           },
         ]}
         showsVerticalScrollIndicator={false}
@@ -284,102 +259,55 @@ export default function SettingsScreen() {
             <View
               style={[
                 styles.iconContainer,
-                {
-                  backgroundColor: shopifyStatus?.connected
-                    ? "#e6f4ea"
-                    : `${BrandColors.gold}15`,
-                },
+                { backgroundColor: `${BrandColors.gold}15` },
               ]}
             >
-              <Feather
-                name="shopping-bag"
-                size={20}
-                color={shopifyStatus?.connected ? "#34a853" : BrandColors.gold}
-              />
+              <Feather name="shopping-bag" size={20} color={BrandColors.gold} />
             </View>
             <ThemedText style={styles.sectionTitle}>
               Shopify Integration
             </ThemedText>
           </View>
 
-          {shopifyLoading ? (
-            <View style={styles.shopifyLoadingContainer}>
-              <ActivityIndicator size="small" color={BrandColors.gold} />
-            </View>
-          ) : shopifyStatus?.connected ? (
-            <View>
-              <View style={styles.shopifyConnectedRow}>
-                <View
-                  style={[
-                    styles.shopifyStatusDot,
-                    { backgroundColor: "#34a853" },
-                  ]}
-                />
-                <ThemedText style={styles.shopifyConnectedText}>
-                  Connected
-                </ThemedText>
-              </View>
-              <ThemedText
-                style={[styles.shopifyDomain, { color: theme.textSecondary }]}
-              >
-                {shopifyStatus.shopDomain}
-              </ThemedText>
-              {shopifyStatus.connectedAt ? (
-                <ThemedText
-                  style={[styles.shopifyDate, { color: theme.textTertiary }]}
-                >
-                  Connected{" "}
-                  {new Date(shopifyStatus.connectedAt).toLocaleDateString()}
-                </ThemedText>
-              ) : null}
-              <Pressable
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  Linking.openURL(`${getApiUrl()}shopify`);
-                }}
-                style={styles.shopifyDisconnectLink}
-              >
-                <ThemedText
-                  style={[
-                    styles.shopifyDisconnectText,
-                    { color: theme.textTertiary },
-                  ]}
-                >
-                  Disconnect
-                </ThemedText>
-              </Pressable>
-            </View>
-          ) : (
-            <View>
+          <View>
+            <ThemedText
+              style={[
+                styles.shopifyDescription,
+                { color: theme.textSecondary },
+              ]}
+            >
+              Connect your Shopify store to export products directly from the
+              app. We're working on this feature and it will be available soon.
+            </ThemedText>
+            <View
+              style={[
+                styles.shopifyComingSoonButton,
+                { backgroundColor: theme.backgroundSecondary },
+              ]}
+            >
+              <Feather name="clock" size={18} color={theme.textTertiary} />
               <ThemedText
                 style={[
-                  styles.shopifyDescription,
-                  { color: theme.textSecondary },
+                  styles.shopifyComingSoonText,
+                  { color: theme.textTertiary },
                 ]}
               >
-                Connect your Shopify store to export products directly from the
-                app.
+                Coming Soon
               </ThemedText>
-              <Pressable
-                style={({ pressed }) => [
-                  styles.shopifyConnectButton,
-                  {
-                    backgroundColor: BrandColors.gold,
-                    opacity: pressed ? 0.9 : 1,
-                  },
-                ]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  Linking.openURL(`${getApiUrl()}shopify`);
-                }}
-              >
-                <Feather name="shopping-bag" size={18} color="#fff" />
-                <ThemedText style={styles.shopifyConnectButtonText}>
-                  Connect Store
-                </ThemedText>
-              </Pressable>
             </View>
-          )}
+            <Pressable
+              onPress={() => {
+                Haptics.selectionAsync();
+                Linking.openURL("mailto:support@digitalhaute.com?subject=Shopify%20Integration%20Interest");
+              }}
+            >
+              <ThemedText
+                style={[styles.shopifyNotifyLink, { color: BrandColors.gold }]}
+              >
+                Notify me when it's ready
+              </ThemedText>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable
@@ -540,47 +468,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  shopifyLoadingContainer: {
-    paddingVertical: Spacing.lg,
-    alignItems: "center",
-  },
-  shopifyConnectedRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: Spacing.xs,
-  },
-  shopifyStatusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: Spacing.sm,
-  },
-  shopifyConnectedText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#34a853",
-  },
-  shopifyDomain: {
-    fontSize: 14,
-    marginBottom: Spacing.xs,
-  },
-  shopifyDate: {
-    fontSize: 12,
-    marginBottom: Spacing.md,
-  },
-  shopifyDisconnectLink: {
-    paddingVertical: Spacing.xs,
-  },
-  shopifyDisconnectText: {
-    fontSize: 13,
-    textDecorationLine: "underline",
-  },
   shopifyDescription: {
     fontSize: 14,
     lineHeight: 20,
     marginBottom: Spacing.lg,
   },
-  shopifyConnectButton: {
+  shopifyComingSoonButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -588,9 +481,15 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
   },
-  shopifyConnectButtonText: {
-    color: "#fff",
+  shopifyComingSoonText: {
     fontSize: 15,
     fontWeight: "600",
+  },
+  shopifyNotifyLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: Spacing.md,
+    textDecorationLine: "underline",
   },
 });

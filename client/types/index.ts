@@ -54,6 +54,7 @@ export interface Vendor {
   paymentTerms?: string;
   packRatio?: PackRatio;
   notes?: string;
+  isFavorite?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,6 +85,9 @@ export const CATEGORIES = [
   "Bottoms",
   "Dresses",
   "Outerwear",
+  "2pcs Set",
+  "3pcs Set",
+  "Rompers & Jumpsuits",
   "Accessories",
   "Shoes",
   "Bags",
@@ -143,7 +147,7 @@ export interface ShopifyStatus {
 
 export type UserRole = "owner" | "buyer" | "assistant";
 
-export type SubscriptionPlan = "starter" | "growth" | "vip";
+export type SubscriptionPlan = "free" | "starter" | "growth" | "vip";
 
 export interface AuthUser {
   id: string;
@@ -151,6 +155,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
+  avatarUrl?: string | null;
   subscriptionPlan?: SubscriptionPlan;
   createdAt: string;
 }

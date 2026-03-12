@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "autoIncrement": true,
+      "channel": "development",
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
@@ -21,6 +22,7 @@
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
+      "channel": "preview",
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
@@ -33,6 +35,7 @@
     },
     "production": {
       "autoIncrement": true,
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",

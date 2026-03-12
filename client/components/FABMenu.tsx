@@ -18,9 +18,10 @@ interface MenuItem {
 interface FABMenuProps {
   items: MenuItem[];
   bottom?: number;
+  centerTab?: boolean;
 }
 
-export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
+export function FABMenu({ items, bottom = 0, centerTab = false }: FABMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { theme } = useTheme();
 
@@ -39,6 +40,111 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
     setTimeout(() => item.onPress(), 200);
   };
 
+  const renderMenu = () => (
+    <Modal
+      visible={isOpen}
+      transparent
+      animationType="fade"
+      onRequestClose={handleClose}
+    >
+      <Pressable style={styles.overlay} onPress={handleClose}>
+        {Platform.OS === "ios" ? (
+          <BlurView intensity={20} style={styles.blur}>
+            <View style={styles.menuContainer}>
+              {items.map((item, index) => (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.menuItem,
+                    { backgroundColor: BrandColors.creamDark },
+                  ]}
+                  onPress={() => handleItemPress(item)}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: `${BrandColors.camel}15` },
+                    ]}
+                  >
+                    <Feather
+                      name={item.icon}
+                      size={20}
+                      color={BrandColors.camel}
+                    />
+                  </View>
+                  <ThemedText
+                    style={[styles.menuLabel, { color: BrandColors.textPrimary }]}
+                  >
+                    {item.label}
+                  </ThemedText>
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={BrandColors.textSecondary}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </BlurView>
+        ) : (
+          <View style={[styles.blur, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+            <View style={styles.menuContainer}>
+              {items.map((item, index) => (
+                <Pressable
+                  key={index}
+                  style={[
+                    styles.menuItem,
+                    { backgroundColor: BrandColors.creamDark },
+                  ]}
+                  onPress={() => handleItemPress(item)}
+                >
+                  <View
+                    style={[
+                      styles.iconContainer,
+                      { backgroundColor: `${BrandColors.camel}15` },
+                    ]}
+                  >
+                    <Feather
+                      name={item.icon}
+                      size={20}
+                      color={BrandColors.camel}
+                    />
+                  </View>
+                  <ThemedText
+                    style={[styles.menuLabel, { color: BrandColors.textPrimary }]}
+                  >
+                    {item.label}
+                  </ThemedText>
+                  <Feather
+                    name="chevron-right"
+                    size={20}
+                    color={BrandColors.textSecondary}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+      </Pressable>
+    </Modal>
+  );
+
+  if (centerTab) {
+    return (
+      <View style={styles.centerTabWrapper}>
+        <Pressable
+          style={[styles.centerFab, Shadows.fab]}
+          onPress={handleOpen}
+        >
+          <GoldGradient style={styles.gradient}>
+            <Feather name="plus" size={28} color="#FFFFFF" />
+          </GoldGradient>
+        </Pressable>
+        {renderMenu()}
+      </View>
+    );
+  }
+
   return (
     <>
       <Pressable
@@ -49,96 +155,12 @@ export function FABMenu({ items, bottom = 0 }: FABMenuProps) {
           <Feather name="plus" size={24} color="#FFFFFF" />
         </GoldGradient>
       </Pressable>
-
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={handleClose}
-      >
-        <Pressable style={styles.overlay} onPress={handleClose}>
-          {Platform.OS === "ios" ? (
-            <BlurView intensity={20} style={styles.blur}>
-              <View style={styles.menuContainer}>
-                {items.map((item, index) => (
-                  <Pressable
-                    key={index}
-                    style={[
-                      styles.menuItem,
-                      { backgroundColor: theme.backgroundSecondary },
-                    ]}
-                    onPress={() => handleItemPress(item)}
-                  >
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        { backgroundColor: BrandColors.goldLight },
-                      ]}
-                    >
-                      <Feather
-                        name={item.icon}
-                        size={20}
-                        color={BrandColors.gold}
-                      />
-                    </View>
-                    <ThemedText
-                      style={[styles.menuLabel, { color: theme.text }]}
-                    >
-                      {item.label}
-                    </ThemedText>
-                    <Feather
-                      name="chevron-right"
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            </BlurView>
-          ) : (
-            <View style={[styles.blur, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
-              <View style={styles.menuContainer}>
-                {items.map((item, index) => (
-                  <Pressable
-                    key={index}
-                    style={[
-                      styles.menuItem,
-                      { backgroundColor: theme.backgroundSecondary },
-                    ]}
-                    onPress={() => handleItemPress(item)}
-                  >
-                    <View
-                      style={[
-                        styles.iconContainer,
-                        { backgroundColor: BrandColors.goldLight },
-                      ]}
-                    >
-                      <Feather
-                        name={item.icon}
-                        size={20}
-                        color={BrandColors.gold}
-                      />
-                    </View>
-                    <ThemedText
-                      style={[styles.menuLabel, { color: theme.text }]}
-                    >
-                      {item.label}
-                    </ThemedText>
-                    <Feather
-                      name="chevron-right"
-                      size={20}
-                      color={theme.textSecondary}
-                    />
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-          )}
-        </Pressable>
-      </Modal>
+      {renderMenu()}
     </>
   );
 }
+
+const FAB_SIZE = 60;
 
 const styles = StyleSheet.create({
   fab: {
@@ -148,6 +170,18 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: "hidden",
+  },
+  centerTabWrapper: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  centerFab: {
+    width: FAB_SIZE,
+    height: FAB_SIZE,
+    borderRadius: FAB_SIZE / 2,
+    overflow: "hidden",
+    marginBottom: 20,
   },
   gradient: {
     width: "100%",

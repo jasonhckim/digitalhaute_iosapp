@@ -1,0 +1,225 @@
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import { Alert } from "react-native";
+
+import { Product, AppSettings } from "@/types";
+import { calculateRetailPrice } from "@/lib/storage";
+
+function formatCurrency(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
+
+function buildProductHTML(product: Product, settings: AppSettings | null): string {
+  const retailPrice =
+    product.retailPrice || calculateRetailPrice(product.wholesalePrice, settings);
+  const colors = (product.selectedColors?.length ? product.selectedColors : product.colors).join(", ");
+  const sizes = (product.sizes || []).join(", ");
+  const statusLabel = product.status.charAt(0).toUpperCase() + product.status.slice(1);
+
+  const imageBlock = product.imageUri
+    ? `<img src="${product.imageUri}" class="product-image" />`
+    : `<div class="product-image placeholder"><span>No Image</span></div>`;
+
+  return `
+    <div class="product-card">
+      ${imageBlock}
+      <div class="product-info">
+        <h3 class="product-name">${escapeHTML(product.name)}</h3>
+        <p class="product-vendor">${escapeHTML(product.vendorName)}</p>
+        <p class="product-meta">#${escapeHTML(product.styleNumber)} &middot; ${escapeHTML(product.category)}</p>
+        <div class="product-prices">
+          <span class="wholesale">W: ${formatCurrency(product.wholesalePrice)}</span>
+          <span class="retail">R: ${formatCurrency(retailPrice)}</span>
+        </div>
+        <p class="product-details">Qty: ${product.quantity} &middot; ${escapeHTML(statusLabel)}</p>
+        ${colors ? `<p class="product-details">Colors: ${escapeHTML(colors)}</p>` : ""}
+        ${sizes ? `<p class="product-details">Sizes: ${escapeHTML(sizes)}</p>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function escapeHTML(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildHTML(products: Product[], settings: AppSettings | null): string {
+  const productCards = products.map((p) => buildProductHTML(p, settings)).join("\n");
+  const date = new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    @page {
+      margin: 0.5in;
+      size: letter;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'Helvetica Neue', sans-serif;
+      background: #FAF6F1;
+      color: #1A1A1A;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid #C4956A;
+    }
+    .header h1 {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #1A1A1A;
+      margin-bottom: 4px;
+    }
+    .header .subtitle {
+      font-size: 13px;
+      color: #6B6B6B;
+    }
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .product-card {
+      width: calc(50% - 8px);
+      background: #F0EBE3;
+      border-radius: 12px;
+      overflow: hidden;
+      page-break-inside: avoid;
+    }
+    .product-image {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+    .product-image.placeholder {
+      background: #E8E2DA;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-image.placeholder span {
+      color: #9B9B9B;
+      font-size: 14px;
+    }
+    .product-info {
+      padding: 12px;
+    }
+    .product-name {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .product-vendor {
+      font-size: 13px;
+      color: #6B6B6B;
+      margin-bottom: 4px;
+    }
+    .product-meta {
+      font-size: 12px;
+      color: #9B9B9B;
+      margin-bottom: 8px;
+    }
+    .product-prices {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .product-prices .wholesale {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1A1A1A;
+    }
+    .product-prices .retail {
+      font-size: 14px;
+      font-weight: 700;
+      color: #C4956A;
+    }
+    .product-details {
+      font-size: 12px;
+      color: #6B6B6B;
+      margin-top: 2px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #E0D8CE;
+      font-size: 11px;
+      color: #9B9B9B;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Digital Haute</h1>
+    <p class="subtitle">Product Catalog &middot; ${date} &middot; ${products.length} product${products.length !== 1 ? "s" : ""}</p>
+  </div>
+  <div class="grid">
+    ${productCards}
+  </div>
+  <div class="footer">
+    Generated by Digital Haute
+  </div>
+</body>
+</html>
+  `;
+}
+
+export async function printCatalog(
+  products: Product[],
+  settings: AppSettings | null,
+): Promise<void> {
+  if (products.length === 0) return;
+
+  const html = buildHTML(products, settings);
+
+  try {
+    await Print.printAsync({ html });
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes("cancelled")) return;
+    Alert.alert("Print Failed", "There was an error printing the catalog.");
+  }
+}
+
+export async function shareCatalogPDF(
+  products: Product[],
+  settings: AppSettings | null,
+): Promise<void> {
+  if (products.length === 0) return;
+
+  const html = buildHTML(products, settings);
+
+  try {
+    const { uri } = await Print.printToFileAsync({ html });
+
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        dialogTitle: "Share Product Catalog",
+        UTI: "com.adobe.pdf",
+      });
+    } else {
+      Alert.alert("PDF Created", "Catalog PDF has been generated.");
+    }
+  } catch (error) {
+    Alert.alert("Export Failed", "There was an error creating the catalog PDF.");
+  }
+}

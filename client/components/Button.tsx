@@ -6,7 +6,6 @@ import {
   StyleProp,
   View,
 } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -71,19 +70,13 @@ export function Button({
         disabled={disabled}
         style={[
           styles.button,
+          styles.primaryButton,
           { opacity: disabled ? 0.5 : 1 },
           style,
           animatedStyle,
         ]}
       >
-        <LinearGradient
-          colors={[BrandColors.gold, BrandColors.goldLight]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.gradient}
-        >
-          <ThemedText style={styles.primaryText}>{children}</ThemedText>
-        </LinearGradient>
+        <ThemedText style={styles.primaryText}>{children}</ThemedText>
       </AnimatedPressable>
     );
   }
@@ -99,14 +92,14 @@ export function Button({
           styles.button,
           styles.secondaryButton,
           {
-            borderColor: BrandColors.gold,
+            borderColor: BrandColors.camel,
             opacity: disabled ? 0.5 : 1,
           },
           style,
           animatedStyle,
         ]}
       >
-        <ThemedText style={[styles.secondaryText, { color: BrandColors.gold }]}>
+        <ThemedText style={[styles.secondaryText, { color: BrandColors.camel }]}>
           {children}
         </ThemedText>
       </AnimatedPressable>
@@ -126,7 +119,7 @@ export function Button({
         animatedStyle,
       ]}
     >
-      <ThemedText style={[styles.ghostText, { color: BrandColors.gold }]}>
+      <ThemedText style={[styles.ghostText, { color: BrandColors.camel }]}>
         {children}
       </ThemedText>
     </AnimatedPressable>
@@ -139,8 +132,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     overflow: "hidden",
   },
-  gradient: {
-    flex: 1,
+  primaryButton: {
+    backgroundColor: BrandColors.textPrimary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: Spacing.xl,

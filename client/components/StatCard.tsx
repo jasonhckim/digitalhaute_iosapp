@@ -4,7 +4,7 @@ import { Feather } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { BorderRadius, Spacing, Shadows, BrandColors } from "@/constants/theme";
+import { BorderRadius, Spacing, BrandColors } from "@/constants/theme";
 
 interface StatCardProps {
   icon: keyof typeof Feather.glyphMap;
@@ -20,16 +20,13 @@ export function StatCard({ icon, label, value, sublabel }: StatCardProps) {
     <View
       style={[
         styles.card,
-        { backgroundColor: theme.backgroundRoot },
-        Shadows.card,
+        { backgroundColor: BrandColors.creamDark },
       ]}
     >
       <View style={styles.iconContainer}>
-        <Feather name={icon} size={20} color={BrandColors.gold} />
+        <Feather name={icon} size={18} color={BrandColors.camel} />
       </View>
-      <ThemedText style={[styles.value, { color: BrandColors.gold }]}>
-        {value}
-      </ThemedText>
+      <ThemedText style={styles.value}>{value}</ThemedText>
       <ThemedText style={[styles.label, { color: theme.textSecondary }]}>
         {label}
       </ThemedText>
@@ -55,6 +52,7 @@ const styles = StyleSheet.create({
   value: {
     fontSize: 24,
     fontWeight: "700",
+    color: BrandColors.textPrimary,
     marginBottom: Spacing.xs,
   },
   label: {

@@ -2,8 +2,7 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 
 import { ThemedText } from "@/components/ThemedText";
-import { BorderRadius, Spacing } from "@/constants/theme";
-import { StatusColors } from "@/constants/theme";
+import { BorderRadius, Spacing, StatusColors } from "@/constants/theme";
 import { ProductStatus, STATUS_LABELS } from "@/types";
 
 interface StatusBadgeProps {

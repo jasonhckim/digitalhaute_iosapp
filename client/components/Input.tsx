@@ -17,7 +17,7 @@ export function Input({ label, error, style, ...props }: InputProps) {
   return (
     <View style={styles.container}>
       {label ? (
-        <ThemedText style={[styles.label, { color: BrandColors.gold }]}>
+        <ThemedText style={[styles.label, { color: BrandColors.textSecondary }]}>
           {label}
         </ThemedText>
       ) : null}
@@ -26,12 +26,12 @@ export function Input({ label, error, style, ...props }: InputProps) {
         style={[
           styles.input,
           {
-            backgroundColor: theme.backgroundRoot,
+            backgroundColor: BrandColors.cream,
             borderColor: error
               ? BrandColors.error
               : isFocused
-                ? BrandColors.gold
-                : theme.border,
+                ? BrandColors.camel
+                : BrandColors.border,
             color: theme.text,
           },
           style,
@@ -39,7 +39,7 @@ export function Input({ label, error, style, ...props }: InputProps) {
         placeholderTextColor={theme.textTertiary}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        selectionColor={BrandColors.gold}
+        selectionColor={BrandColors.camel}
         {...props}
       />
 

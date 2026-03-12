@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(eas env:create:*)",
+      "WebFetch(domain:www.revenuecat.com)",
+      "Bash(npx expo:*)",
+      "Bash(npm ls:*)"
+    ]
+  }
+}

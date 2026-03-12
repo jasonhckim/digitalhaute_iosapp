@@ -19,7 +19,7 @@ export default function ProductsStackNavigator() {
         name="Products"
         component={ProductsScreen}
         options={{
-          headerTitle: "Products",
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

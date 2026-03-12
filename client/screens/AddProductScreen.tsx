@@ -89,7 +89,6 @@ export default function AddProductScreen() {
     if (!quantity || isNaN(parseInt(quantity)))
       return "Valid quantity is required";
     if (!season) return "Please select a season";
-    if (!deliveryDate) return "Delivery date is required";
     return null;
   };
 

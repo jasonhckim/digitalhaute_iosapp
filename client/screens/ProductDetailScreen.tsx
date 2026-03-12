@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   StyleSheet,
@@ -6,8 +6,11 @@ import {
   Image,
   Alert,
   Pressable,
+  Modal,
+  Dimensions,
+  StatusBar,
 } from "react-native";
-import { useRoute, useNavigation, RouteProp } from "@react-navigation/native";
+import { useRoute, useNavigation, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,9 +21,12 @@ import { ThemedText } from "@/components/ThemedText";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/Button";
 import { Select } from "@/components/Select";
+import { UpgradePromptModal } from "@/components/UpgradePromptModal";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
+import { useAuth } from "@/contexts/AuthContext";
+import { Spacing, BorderRadius, Shadows, BrandColors, FontFamilies } from "@/constants/theme";
 import { ProductStorage, BudgetStorage } from "@/lib/storage";
+import { hasFeature } from "@/lib/plans";
 import { Product, ProductStatus, STATUS_LABELS } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -33,13 +39,44 @@ export default function ProductDetailScreen() {
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const canUseSeeOnModel = hasFeature(user?.subscriptionPlan, "seeOnModel");
+
+  const handleSeeOnModelPress = () => {
+    if (canUseSeeOnModel) {
+      navigation.navigate("TryOn", {
+        productId: product!.id,
+        imageUri: product!.imageUri!,
+        category: product!.category,
+      });
+    } else {
+      setShowUpgradeModal(true);
+    }
+  };
+
+  const handleUpgradeToBilling = () => {
+    setShowUpgradeModal(false);
+    navigation.navigate("Main", {
+      screen: "AccountTab",
+      params: { screen: "Billing" },
+    });
+  };
 
   useEffect(() => {
     loadProduct();
   }, [route.params.productId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProduct();
+    }, [route.params.productId]),
+  );
 
   const loadProduct = async () => {
     try {
@@ -126,200 +163,301 @@ export default function ProductDetailScreen() {
     label,
   }));
 
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } =
+    Dimensions.get("window");
+
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      contentContainerStyle={{
-        paddingTop: headerHeight + Spacing.xl,
-        paddingBottom: insets.bottom + Spacing["3xl"],
-        paddingHorizontal: Spacing.lg,
-      }}
-    >
-      {product.imageUri ? (
-        <Image source={{ uri: product.imageUri }} style={styles.image} />
-      ) : (
-        <View
-          style={[
-            styles.imagePlaceholder,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <Feather name="image" size={48} color={theme.textTertiary} />
-        </View>
-      )}
-
-      <View style={styles.header}>
-        <ThemedText style={styles.productName}>{product.name}</ThemedText>
-        <StatusBadge status={product.status} />
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.backgroundRoot },
-          Shadows.card,
-        ]}
+    <>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.xl,
+          paddingBottom: insets.bottom + Spacing["3xl"],
+          paddingHorizontal: Spacing.lg,
+        }}
       >
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Vendor
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>
-            {product.vendorName}
-          </ThemedText>
-        </View>
-
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Style #
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>
-            {product.styleNumber}
-          </ThemedText>
-        </View>
-
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Category
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>{product.category}</ThemedText>
-        </View>
-
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Season
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>{product.season}</ThemedText>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.backgroundRoot },
-          Shadows.card,
-        ]}
-      >
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Wholesale Price
-          </ThemedText>
-          <ThemedText style={[styles.priceValue, { color: BrandColors.gold }]}>
-            {formatCurrency(product.wholesalePrice)}
-          </ThemedText>
-        </View>
-
-        {product.retailPrice ? (
-          <View style={styles.detailRow}>
-            <ThemedText
-              style={[styles.detailLabel, { color: theme.textSecondary }]}
+        {product.imageUri ? (
+          <View>
+            <Pressable onPress={() => setFullscreenImage(product.imageUri!)}>
+              <Image source={{ uri: product.imageUri }} style={styles.image} />
+              <View style={styles.enlargeHint}>
+                <Feather name="maximize-2" size={14} color="#FFFFFF" />
+              </View>
+            </Pressable>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                handleSeeOnModelPress();
+              }}
+              style={[
+                styles.tryOnButton,
+                { backgroundColor: BrandColors.gold },
+              ]}
             >
-              Retail Price
-            </ThemedText>
-            <ThemedText style={styles.detailValue}>
-              {formatCurrency(product.retailPrice)}
-            </ThemedText>
+              <Feather name="user" size={16} color="#FFFFFF" />
+              <ThemedText style={styles.tryOnButtonText}>
+                See on Model
+              </ThemedText>
+            </Pressable>
           </View>
+        ) : (
+          <View
+            style={[
+              styles.imagePlaceholder,
+              { backgroundColor: theme.backgroundSecondary },
+            ]}
+          >
+            <Feather name="image" size={48} color={theme.textTertiary} />
+          </View>
+        )}
+
+        {/* Show saved model image only if it differs from the main image */}
+        {product.modelImageUri && product.modelImageUri !== product.imageUri ? (
+          <Pressable
+            onPress={() => setFullscreenImage(product.modelImageUri!)}
+            style={{ marginBottom: Spacing.lg }}
+          >
+            <ThemedText
+              style={[styles.modelImageLabel, { color: theme.textSecondary }]}
+            >
+              AI Model Preview
+            </ThemedText>
+            <Image
+              source={{ uri: product.modelImageUri }}
+              style={styles.modelImage}
+            />
+            <View style={styles.enlargeHint}>
+              <Feather name="maximize-2" size={14} color="#FFFFFF" />
+            </View>
+          </Pressable>
         ) : null}
 
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Quantity
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>{product.quantity}</ThemedText>
+        <View style={styles.header}>
+          <ThemedText style={styles.productName}>{product.name}</ThemedText>
+          <StatusBadge status={product.status} />
         </View>
 
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Total Cost
-          </ThemedText>
-          <ThemedText style={[styles.priceValue, { color: BrandColors.gold }]}>
-            {formatCurrency(product.wholesalePrice * product.quantity)}
-          </ThemedText>
-        </View>
-      </View>
-
-      <View
-        style={[
-          styles.card,
-          { backgroundColor: theme.backgroundRoot },
-          Shadows.card,
-        ]}
-      >
-        <View style={styles.detailRow}>
-          <ThemedText
-            style={[styles.detailLabel, { color: theme.textSecondary }]}
-          >
-            Delivery Date
-          </ThemedText>
-          <ThemedText style={styles.detailValue}>
-            {formatDate(product.deliveryDate)}
-          </ThemedText>
-        </View>
-
-        {product.receivedDate ? (
-          <View style={styles.detailRow}>
-            <ThemedText
-              style={[styles.detailLabel, { color: theme.textSecondary }]}
-            >
-              Received Date
-            </ThemedText>
-            <ThemedText style={styles.detailValue}>
-              {formatDate(product.receivedDate)}
-            </ThemedText>
-          </View>
-        ) : null}
-      </View>
-
-      {product.notes ? (
         <View
           style={[
             styles.card,
-            { backgroundColor: theme.backgroundRoot },
-            Shadows.card,
+            { backgroundColor: BrandColors.creamDark },
           ]}
         >
-          <ThemedText
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Vendor
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>
+              {product.vendorName}
+            </ThemedText>
+          </View>
+
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Style #
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>
+              {product.styleNumber}
+            </ThemedText>
+          </View>
+
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Category
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>
+              {product.category}
+            </ThemedText>
+          </View>
+
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Season
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>{product.season}</ThemedText>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: BrandColors.creamDark },
+          ]}
+        >
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Wholesale Price
+            </ThemedText>
+            <ThemedText
+              style={[styles.priceValue, { color: BrandColors.gold }]}
+            >
+              {formatCurrency(product.wholesalePrice)}
+            </ThemedText>
+          </View>
+
+          {product.retailPrice ? (
+            <View style={styles.detailRow}>
+              <ThemedText
+                style={[styles.detailLabel, { color: theme.textSecondary }]}
+              >
+                Retail Price
+              </ThemedText>
+              <ThemedText style={styles.detailValue}>
+                {formatCurrency(product.retailPrice)}
+              </ThemedText>
+            </View>
+          ) : null}
+
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Quantity
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>
+              {product.quantity}
+            </ThemedText>
+          </View>
+
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Total Cost
+            </ThemedText>
+            <ThemedText
+              style={[styles.priceValue, { color: BrandColors.gold }]}
+            >
+              {formatCurrency(product.wholesalePrice * product.quantity)}
+            </ThemedText>
+          </View>
+        </View>
+
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: BrandColors.creamDark },
+          ]}
+        >
+          <View style={styles.detailRow}>
+            <ThemedText
+              style={[styles.detailLabel, { color: theme.textSecondary }]}
+            >
+              Delivery Date
+            </ThemedText>
+            <ThemedText style={styles.detailValue}>
+              {formatDate(product.deliveryDate)}
+            </ThemedText>
+          </View>
+
+          {product.receivedDate ? (
+            <View style={styles.detailRow}>
+              <ThemedText
+                style={[styles.detailLabel, { color: theme.textSecondary }]}
+              >
+                Received Date
+              </ThemedText>
+              <ThemedText style={styles.detailValue}>
+                {formatDate(product.receivedDate)}
+              </ThemedText>
+            </View>
+          ) : null}
+        </View>
+
+        {product.notes ? (
+          <View
             style={[
-              styles.detailLabel,
-              { color: theme.textSecondary, marginBottom: Spacing.sm },
+              styles.card,
+              { backgroundColor: BrandColors.creamDark },
             ]}
           >
-            Notes
-          </ThemedText>
-          <ThemedText style={styles.notesText}>{product.notes}</ThemedText>
-        </View>
-      ) : null}
+            <ThemedText
+              style={[
+                styles.detailLabel,
+                { color: theme.textSecondary, marginBottom: Spacing.sm },
+              ]}
+            >
+              Notes
+            </ThemedText>
+            <ThemedText style={styles.notesText}>{product.notes}</ThemedText>
+          </View>
+        ) : null}
 
-      <Select
-        label="Update Status"
-        options={statusOptions}
-        value={product.status}
-        onChange={handleStatusChange}
-      />
+        <Select
+          label="Update Status"
+          options={statusOptions}
+          value={product.status}
+          onChange={handleStatusChange}
+        />
 
-      <Button
-        variant="secondary"
-        onPress={handleDelete}
-        style={styles.deleteButton}
+        <Button
+          variant="primary"
+          onPress={() =>
+            navigation.navigate("EditProduct", { productId: product.id })
+          }
+          style={styles.editButton}
+        >
+          Edit Product
+        </Button>
+
+        <Button
+          variant="secondary"
+          onPress={handleDelete}
+          style={styles.deleteButton}
+        >
+          Delete Product
+        </Button>
+      </ScrollView>
+
+      {/* Fullscreen Image Modal */}
+      <Modal
+        visible={fullscreenImage !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFullscreenImage(null)}
       >
-        Delete Product
-      </Button>
-    </ScrollView>
+        <StatusBar barStyle="light-content" />
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setFullscreenImage(null)}
+        >
+          {fullscreenImage && (
+            <Image
+              source={{ uri: fullscreenImage }}
+              style={{
+                width: SCREEN_WIDTH,
+                height: SCREEN_HEIGHT * 0.75,
+              }}
+              resizeMode="contain"
+            />
+          )}
+          <Pressable
+            style={[styles.closeButton, { top: insets.top + Spacing.md }]}
+            onPress={() => setFullscreenImage(null)}
+          >
+            <Feather name="x" size={24} color="#FFFFFF" />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <UpgradePromptModal
+        visible={showUpgradeModal}
+        featureId="seeOnModel"
+        onDismiss={() => setShowUpgradeModal(false)}
+        onUpgrade={handleUpgradeToBilling}
+      />
+    </>
   );
 }
 
@@ -354,7 +492,8 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 24,
-    fontWeight: "700",
+    fontFamily: FontFamilies.serif,
+    color: BrandColors.textPrimary,
     flex: 1,
     marginRight: Spacing.md,
   },
@@ -384,8 +523,70 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  enlargeHint: {
+    position: "absolute",
+    top: Spacing.sm,
+    right: Spacing.sm,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: BorderRadius.full,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tryOnButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.full,
+    position: "absolute",
+    bottom: Spacing.lg + Spacing.xl,
+    right: Spacing.md,
+    gap: Spacing.xs,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  tryOnButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modelImageLabel: {
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: Spacing.sm,
+  },
+  modelImage: {
+    width: "100%",
+    height: 300,
+    borderRadius: BorderRadius.lg,
+  },
+  editButton: {
+    marginTop: Spacing.xl,
+  },
   deleteButton: {
     marginTop: Spacing.md,
     borderColor: BrandColors.error,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeButton: {
+    position: "absolute",
+    right: Spacing.lg,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: BorderRadius.full,
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

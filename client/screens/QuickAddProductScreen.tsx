@@ -43,7 +43,9 @@ import {
   AppSettings,
 } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { getApiUrl } from "@/lib/query-client";
+import { scanLabelImage } from "@/lib/scanLabel";
+import { useAuth } from "@/contexts/AuthContext";
+import { PLANS } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -74,6 +76,7 @@ export default function QuickAddProductScreen() {
   const headerHeight = useHeaderHeight();
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   const [step, setStep] = useState<Step>("setup");
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -230,25 +233,8 @@ export default function QuickAddProductScreen() {
     if (!base64Data) return null;
 
     try {
-      const apiUrl = getApiUrl();
-      const response = await fetch(
-        new URL("/api/scan-label", apiUrl).toString(),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: base64Data }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to scan label");
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        return result.data;
-      }
+      const result = await scanLabelImage(base64Data);
+      return result;
     } catch (error) {
       console.error("Error scanning label:", error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -264,7 +250,6 @@ export default function QuickAddProductScreen() {
     if (data.retailPrice) setRetailPrice(data.retailPrice.toString());
     if (data.colors && data.colors.length > 0)
       setColors(data.colors.join(", "));
-    if (data.sizes && data.sizes.length > 0) setSizes(data.sizes.join(", "));
     if (data.notes) setNotes(data.notes);
 
     if (data.category) {
@@ -308,6 +293,35 @@ export default function QuickAddProductScreen() {
       return;
     }
 
+    const plan = user?.subscriptionPlan ?? "free";
+    const maxProducts = PLANS[plan]?.maxProducts ?? 10;
+    if (maxProducts !== Infinity) {
+      const existing = await ProductStorage.getAll();
+      if (existing.length >= maxProducts) {
+        Alert.alert(
+          "Product Limit Reached",
+          `Your Free plan is limited to ${maxProducts} products. Upgrade to Starter for unlimited products.`,
+          [
+            {
+              text: "Upgrade to Starter",
+              onPress: () => {
+                navigation.navigate("Main", {
+                  screen: "AccountTab",
+                  params: { screen: "Billing" },
+                });
+              },
+            },
+            { text: "Continue Anyway", onPress: () => doSave() },
+          ],
+        );
+        return;
+      }
+    }
+
+    await doSave();
+  };
+
+  const doSave = async () => {
     setIsSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 

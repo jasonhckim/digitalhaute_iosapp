@@ -7,11 +7,8 @@ import {
   RefreshControl,
   Pressable,
   Alert,
-  Share,
-  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -24,10 +21,17 @@ import { ThemedText } from "@/components/ThemedText";
 import { ProductCard } from "@/components/ProductCard";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button";
+import { PageHeader } from "@/components/HeaderTitle";
 import { UpgradePromptModal } from "@/components/UpgradePromptModal";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { Spacing, BorderRadius, BrandColors, Shadows } from "@/constants/theme";
+import {
+  Spacing,
+  BorderRadius,
+  BrandColors,
+  Shadows,
+  FontFamilies,
+} from "@/constants/theme";
 import {
   ProductStorage,
   VendorStorage,
@@ -35,16 +39,17 @@ import {
   calculateRetailPrice,
 } from "@/lib/storage";
 import { checkShopifyStatus, exportToShopify } from "@/lib/shopify";
+import { exportToExcel } from "@/lib/exportExcel";
+import { printCatalog, shareCatalogPDF } from "@/lib/exportCatalog";
 import { Product, Vendor, CATEGORIES, AppSettings } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { hasGrowthFeature } from "@/lib/plans";
+import { hasFeature } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
@@ -62,10 +67,12 @@ export default function ProductsScreen() {
   const { requireAuth } = useRequireAuth();
   const { user } = useAuth();
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingExcel, setIsExportingExcel] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [isExportingShopify, setIsExportingShopify] = useState(false);
   const [showShopifyUpgradeModal, setShowShopifyUpgradeModal] = useState(false);
 
-  const canUseShopifyExport = hasGrowthFeature(user?.subscriptionPlan);
+  const canUseShopifyExport = hasFeature(user?.subscriptionPlan, "shopifyUpload");
 
   const loadData = useCallback(async () => {
     try {
@@ -342,6 +349,60 @@ export default function ProductsScreen() {
     }
   };
 
+  const handleExcelExport = async () => {
+    if (selectedIds.size === 0) {
+      Alert.alert(
+        "No Products Selected",
+        "Please select at least one product to export.",
+      );
+      return;
+    }
+
+    setIsExportingExcel(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+      await exportToExcel(selectedProducts, settings);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Excel export error:", error);
+      Alert.alert(
+        "Export Failed",
+        "There was an error creating the Excel file.",
+      );
+    } finally {
+      setIsExportingExcel(false);
+    }
+  };
+
+  const handlePrintCatalog = async () => {
+    if (selectedIds.size === 0) {
+      Alert.alert(
+        "No Products Selected",
+        "Please select at least one product to print.",
+      );
+      return;
+    }
+
+    setIsPrinting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+      await printCatalog(selectedProducts, settings);
+      exitSelectionMode();
+    } catch (error) {
+      console.error("Print catalog error:", error);
+      Alert.alert(
+        "Print Failed",
+        "There was an error printing the catalog.",
+      );
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
       searchQuery === "" ||
@@ -358,9 +419,16 @@ export default function ProductsScreen() {
     return matchesSearch && matchesCategory && matchesVendor;
   });
 
-  const renderProduct = ({ item }: { item: Product }) => (
+  const renderGridItem = ({
+    item,
+    index,
+  }: {
+    item: Product;
+    index: number;
+  }) => (
     <ProductCard
       product={item}
+      gridMode
       selectionMode={selectionMode}
       isSelected={selectedIds.has(item.id)}
       onPress={() => {
@@ -378,61 +446,27 @@ export default function ProductsScreen() {
     />
   );
 
-  const renderFilterChip = ({ item }: { item: string }) => {
-    const isSelected = selectedCategory === item;
-    return (
-      <Pressable
-        style={[
-          styles.filterChip,
-          {
-            backgroundColor: isSelected
-              ? `${BrandColors.gold}15`
-              : "transparent",
-            borderColor: isSelected ? BrandColors.gold : theme.border,
-          },
-        ]}
-        onPress={() => {
-          Haptics.selectionAsync();
-          setSelectedCategory(isSelected ? null : item);
-        }}
-      >
-        <ThemedText
-          style={[
-            styles.filterText,
-            { color: isSelected ? BrandColors.gold : theme.textSecondary },
-          ]}
-        >
-          {item}
-        </ThemedText>
-      </Pressable>
-    );
-  };
-
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
+    <View style={[styles.container, { backgroundColor: BrandColors.cream }]}>
+      <View style={{ paddingTop: insets.top }}>
+        <PageHeader />
+      </View>
+
       {selectionMode ? (
-        <View
-          style={[
-            styles.selectionBar,
-            {
-              paddingTop: headerHeight + Spacing.md,
-              backgroundColor: theme.backgroundRoot,
-            },
-          ]}
-        >
+        <View style={styles.selectionBar}>
           <View style={styles.selectionBarContent}>
             <Pressable
               onPress={exitSelectionMode}
               style={styles.selectionBarButton}
             >
-              <Feather name="x" size={22} color={theme.text} />
+              <Feather name="x" size={22} color={BrandColors.textPrimary} />
             </Pressable>
             <ThemedText style={styles.selectionCount}>
               {selectedIds.size} selected
             </ThemedText>
             <Pressable onPress={selectAll} style={styles.selectionBarButton}>
               <ThemedText
-                style={[styles.selectAllText, { color: BrandColors.gold }]}
+                style={[styles.selectAllText, { color: BrandColors.camel }]}
               >
                 Select All
               </ThemedText>
@@ -440,30 +474,24 @@ export default function ProductsScreen() {
           </View>
         </View>
       ) : (
-        <View
-          style={[
-            styles.searchContainer,
-            { paddingTop: headerHeight + Spacing.md },
-          ]}
-        >
-          <View
-            style={[
-              styles.searchBar,
-              { backgroundColor: theme.backgroundDefault },
-            ]}
-          >
-            <Feather name="search" size={20} color={theme.textTertiary} />
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={18} color={BrandColors.textTertiary} />
             <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              placeholder="Search products..."
-              placeholderTextColor={theme.textTertiary}
+              style={[styles.searchInput, { color: BrandColors.textPrimary }]}
+              placeholder="Search Products"
+              placeholderTextColor={BrandColors.textTertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
-              selectionColor={BrandColors.gold}
+              selectionColor={BrandColors.camel}
             />
             {searchQuery.length > 0 ? (
               <Pressable onPress={() => setSearchQuery("")}>
-                <Feather name="x" size={20} color={theme.textTertiary} />
+                <Feather
+                  name="x"
+                  size={18}
+                  color={BrandColors.textTertiary}
+                />
               </Pressable>
             ) : null}
           </View>
@@ -475,73 +503,68 @@ export default function ProductsScreen() {
             keyExtractor={(item) => item}
             style={styles.filterList}
             contentContainerStyle={styles.filterContent}
-            renderItem={renderFilterChip}
-          />
-
-          {vendors.length > 0 ? (
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={vendors}
-              keyExtractor={(item) => item.id}
-              style={styles.vendorFilterList}
-              contentContainerStyle={styles.filterContent}
-              renderItem={({ item }) => {
-                const isSelected = selectedVendor === item.id;
-                return (
-                  <Pressable
+            renderItem={({ item }) => {
+              const isSelected = selectedCategory === item;
+              return (
+                <Pressable
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor: isSelected
+                        ? BrandColors.textPrimary
+                        : "transparent",
+                      borderColor: isSelected
+                        ? BrandColors.textPrimary
+                        : BrandColors.border,
+                    },
+                  ]}
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setSelectedCategory(isSelected ? null : item);
+                  }}
+                >
+                  <ThemedText
                     style={[
-                      styles.filterChip,
+                      styles.filterText,
                       {
-                        backgroundColor: isSelected
-                          ? `${BrandColors.gold}15`
-                          : "transparent",
-                        borderColor: isSelected
-                          ? BrandColors.gold
-                          : theme.border,
+                        color: isSelected
+                          ? BrandColors.white
+                          : BrandColors.textPrimary,
                       },
                     ]}
-                    onPress={() => {
-                      Haptics.selectionAsync();
-                      setSelectedVendor(isSelected ? null : item.id);
-                    }}
                   >
-                    <Feather
-                      name="briefcase"
-                      size={12}
-                      color={
-                        isSelected ? BrandColors.gold : theme.textSecondary
-                      }
-                      style={{ marginRight: 4 }}
-                    />
-                    <ThemedText
-                      style={[
-                        styles.filterText,
-                        {
-                          color: isSelected
-                            ? BrandColors.gold
-                            : theme.textSecondary,
-                        },
-                      ]}
-                    >
-                      {item.name}
-                    </ThemedText>
-                  </Pressable>
-                );
-              }}
-            />
-          ) : null}
+                    {item}
+                  </ThemedText>
+                </Pressable>
+              );
+            }}
+          />
         </View>
       )}
+
+      <View style={styles.productsSectionHeader}>
+        <ThemedText style={styles.productsTitle}>Products</ThemedText>
+        {!selectionMode && filteredProducts.length > 0 ? (
+          <Pressable
+            onPress={() => {
+              Haptics.selectionAsync();
+              setSelectionMode(true);
+            }}
+            hitSlop={8}
+          >
+            <ThemedText style={styles.selectButtonText}>Select</ThemedText>
+          </Pressable>
+        ) : null}
+      </View>
 
       <FlatList
         data={filteredProducts}
         keyExtractor={(item) => item.id}
-        renderItem={renderProduct}
+        renderItem={renderGridItem}
+        numColumns={2}
         contentContainerStyle={{
-          paddingTop: Spacing.md,
+          paddingHorizontal: Spacing.md,
           paddingBottom: tabBarHeight + Spacing["5xl"] + 56,
-          paddingHorizontal: Spacing.lg,
           flexGrow: 1,
         }}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
@@ -549,7 +572,7 @@ export default function ProductsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={BrandColors.gold}
+            tintColor={BrandColors.camel}
           />
         }
         ListEmptyComponent={
@@ -589,45 +612,84 @@ export default function ProductsScreen() {
             styles.exportBar,
             {
               paddingBottom: tabBarHeight + Spacing.md,
-              backgroundColor: theme.backgroundRoot,
+              backgroundColor: BrandColors.cream,
             },
           ]}
         >
           <ThemedText
             style={[
               styles.exportSelectionCount,
-              { color: theme.textSecondary },
+              { color: BrandColors.textSecondary },
             ]}
           >
             {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""}{" "}
             selected
           </ThemedText>
+          <Button
+            onPress={handleExcelExport}
+            style={styles.exportButtonFull}
+            disabled={isExportingExcel}
+          >
+            <View style={styles.exportButtonContent}>
+              <Feather name="file-text" size={18} color="#fff" />
+              <ThemedText style={styles.exportButtonText}>
+                {isExportingExcel ? "Exporting..." : "Export to Excel"}
+              </ThemedText>
+            </View>
+          </Button>
           <View style={styles.exportButtonRow}>
             <Button
               onPress={handleCSVExport}
+              variant="secondary"
               style={styles.exportButtonHalf}
               disabled={isExporting}
             >
               <View style={styles.exportButtonContent}>
-                <Feather name="download" size={18} color="#fff" />
-                <ThemedText style={styles.exportButtonText}>
-                  {isExporting ? "Exporting..." : "Export as CSV"}
+                <Feather
+                  name="download"
+                  size={16}
+                  color={BrandColors.camel}
+                />
+                <ThemedText style={styles.exportButtonSecondaryText}>
+                  {isExporting ? "Exporting..." : "CSV"}
                 </ThemedText>
               </View>
             </Button>
             <Button
-              onPress={handleShopifyExport}
+              onPress={handlePrintCatalog}
+              variant="secondary"
               style={styles.exportButtonHalf}
-              disabled={isExportingShopify}
+              disabled={isPrinting}
             >
               <View style={styles.exportButtonContent}>
-                <Feather name="shopping-bag" size={18} color="#fff" />
-                <ThemedText style={styles.exportButtonText}>
-                  {isExportingShopify ? "Exporting..." : "Export to Shopify"}
+                <Feather
+                  name="printer"
+                  size={16}
+                  color={BrandColors.camel}
+                />
+                <ThemedText style={styles.exportButtonSecondaryText}>
+                  {isPrinting ? "Printing..." : "Print Catalog"}
                 </ThemedText>
               </View>
             </Button>
           </View>
+          <Button
+            onPress={handleShopifyExport}
+            variant="secondary"
+            style={styles.exportButtonFull}
+            disabled={isExportingShopify}
+          >
+            <View style={styles.exportButtonContent}>
+              <Feather
+                name="shopping-bag"
+                size={16}
+                color={BrandColors.camel}
+              />
+              <ThemedText style={styles.exportButtonSecondaryText}>
+                {isExportingShopify ? "Exporting..." : "Export to Shopify"}
+              </ThemedText>
+            </View>
+          </Button>
         </View>
       ) : null}
 
@@ -637,14 +699,10 @@ export default function ProductsScreen() {
         onDismiss={() => setShowShopifyUpgradeModal(false)}
         onUpgrade={() => {
           setShowShopifyUpgradeModal(false);
-          // Navigate to Account tab > Billing screen
-          const tabNav = navigation.getParent()?.getParent();
-          if (tabNav) {
-            (tabNav as { navigate: (a: string, b?: object) => void }).navigate(
-              "AccountTab",
-              { screen: "Billing" },
-            );
-          }
+          navigation.navigate("Main", {
+            screen: "AccountTab",
+            params: { screen: "Billing" },
+          });
         }}
       />
     </View>
@@ -663,27 +721,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     height: 44,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius["3xl"],
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: BrandColors.creamDark,
+    borderWidth: 1,
+    borderColor: BrandColors.peach,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     marginLeft: Spacing.sm,
   },
   filterList: {
     marginTop: Spacing.md,
     marginHorizontal: -Spacing.lg,
   },
-  vendorFilterList: {
-    marginTop: Spacing.sm,
-    marginHorizontal: -Spacing.lg,
-  },
   filterContent: {
     paddingHorizontal: Spacing.lg,
   },
   filterChip: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
@@ -692,6 +749,27 @@ const styles = StyleSheet.create({
   filterText: {
     fontSize: 14,
     fontWeight: "500",
+  },
+  productsSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BrandColors.border,
+    marginBottom: Spacing.sm,
+  },
+  productsTitle: {
+    fontSize: 18,
+    fontFamily: FontFamilies.serifSemiBold,
+    color: BrandColors.textPrimary,
+  },
+  selectButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: BrandColors.camel,
   },
   selectionBar: {
     paddingHorizontal: Spacing.lg,
@@ -721,27 +799,26 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
+    gap: Spacing.sm,
     ...Shadows.card,
   },
   exportSelectionCount: {
     fontSize: 13,
     textAlign: "center",
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   exportButtonRow: {
     flexDirection: "row",
     gap: Spacing.sm,
   },
-  exportButton: {
-    flex: 1,
-    backgroundColor: BrandColors.gold,
-    height: 52,
+  exportButtonFull: {
+    width: "100%",
+    height: 48,
     borderRadius: BorderRadius.md,
   },
   exportButtonHalf: {
     flex: 1,
-    backgroundColor: BrandColors.gold,
-    height: 52,
+    height: 44,
     borderRadius: BorderRadius.md,
   },
   exportButtonContent: {
@@ -752,6 +829,11 @@ const styles = StyleSheet.create({
   exportButtonText: {
     color: "#fff",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  exportButtonSecondaryText: {
+    color: BrandColors.camel,
+    fontSize: 14,
     fontWeight: "600",
   },
 });

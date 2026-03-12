@@ -1,8 +1,14 @@
 import React from "react";
+import { Pressable } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
 
 import VendorsScreen from "@/screens/VendorsScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
+import { BrandColors } from "@/constants/theme";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 export type VendorsStackParamList = {
   Vendors: undefined;
@@ -19,7 +25,7 @@ export default function VendorsStackNavigator() {
         name="Vendors"
         component={VendorsScreen}
         options={{
-          headerTitle: "Vendors",
+          headerShown: false,
         }}
       />
     </Stack.Navigator>

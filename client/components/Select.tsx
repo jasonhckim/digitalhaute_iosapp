@@ -43,7 +43,9 @@ export function Select({
   return (
     <View style={styles.container}>
       {label ? (
-        <ThemedText style={[styles.label, { color: BrandColors.gold }]}>
+        <ThemedText
+          style={[styles.label, { color: BrandColors.textSecondary }]}
+        >
           {label}
         </ThemedText>
       ) : null}
@@ -52,8 +54,8 @@ export function Select({
         style={[
           styles.select,
           {
-            backgroundColor: theme.backgroundRoot,
-            borderColor: error ? BrandColors.error : theme.border,
+            backgroundColor: BrandColors.cream,
+            borderColor: error ? BrandColors.error : BrandColors.border,
           },
         ]}
         onPress={() => setIsOpen(true)}
@@ -61,12 +63,20 @@ export function Select({
         <ThemedText
           style={[
             styles.selectText,
-            { color: selectedOption ? theme.text : theme.textTertiary },
+            {
+              color: selectedOption
+                ? BrandColors.textPrimary
+                : BrandColors.textTertiary,
+            },
           ]}
         >
           {selectedOption ? selectedOption.label : placeholder}
         </ThemedText>
-        <Feather name="chevron-down" size={20} color={theme.textTertiary} />
+        <Feather
+          name="chevron-down"
+          size={20}
+          color={BrandColors.textTertiary}
+        />
       </Pressable>
 
       {error ? (
@@ -86,18 +96,27 @@ export function Select({
             style={[
               styles.dropdown,
               {
-                backgroundColor: theme.backgroundRoot,
+                backgroundColor: BrandColors.cream,
                 marginBottom: insets.bottom + Spacing.lg,
               },
               Shadows.card,
             ]}
           >
-            <View style={[styles.dropdownHeader, { borderBottomColor: theme.border }]}>
+            <View
+              style={[
+                styles.dropdownHeader,
+                { borderBottomColor: BrandColors.border },
+              ]}
+            >
               <ThemedText style={styles.dropdownTitle}>
                 {label || "Select Option"}
               </ThemedText>
               <Pressable onPress={() => setIsOpen(false)}>
-                <Feather name="x" size={24} color={theme.text} />
+                <Feather
+                  name="x"
+                  size={24}
+                  color={BrandColors.textPrimary}
+                />
               </Pressable>
             </View>
 
@@ -108,9 +127,9 @@ export function Select({
                 <Pressable
                   style={[
                     styles.option,
-                    { borderBottomColor: theme.border },
+                    { borderBottomColor: BrandColors.border },
                     item.value === value && {
-                      backgroundColor: `${BrandColors.gold}10`,
+                      backgroundColor: `${BrandColors.camel}10`,
                     },
                   ]}
                   onPress={() => handleSelect(item.value)}
@@ -119,7 +138,7 @@ export function Select({
                     style={[
                       styles.optionText,
                       item.value === value && {
-                        color: BrandColors.gold,
+                        color: BrandColors.camel,
                         fontWeight: "600",
                       },
                     ]}
@@ -127,7 +146,11 @@ export function Select({
                     {item.label}
                   </ThemedText>
                   {item.value === value ? (
-                    <Feather name="check" size={20} color={BrandColors.gold} />
+                    <Feather
+                      name="check"
+                      size={20}
+                      color={BrandColors.camel}
+                    />
                   ) : null}
                 </Pressable>
               )}

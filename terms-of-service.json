@@ -1,0 +1,68 @@
+{
+  "title": "Terms of Service",
+  "effectiveDate": "March 10, 2026",
+  "companyName": "Digital Haute",
+  "appName": "Digital Haute",
+  "contactEmail": "support@digitalhaute.com",
+  "governingLaw": "State of California",
+  "jurisdiction": "Los Angeles County, California",
+  "introduction": "These Terms of Service (\"Terms\") govern your use of the Digital Haute mobile application (the \"App\") operated by Digital Haute (\"we\", \"our\", or \"us\"). By downloading, installing, or using the App, you agree to these Terms. If you do not agree, do not use the App.",
+  "sections": [
+    {
+      "heading": "1. Eligibility",
+      "body": "You must be at least 18 years old and capable of forming a binding contract to use the App. By using the App, you represent that you meet these requirements."
+    },
+    {
+      "heading": "2. Account Registration",
+      "body": "You must create an account to access certain features. You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account. You agree to provide accurate and complete information and to notify us immediately of any unauthorized use of your account."
+    },
+    {
+      "heading": "3. Subscription Plans & Billing",
+      "body": "The App offers free and paid subscription plans (Starter, Growth, and VIP). Paid subscriptions are billed through the Apple App Store on a monthly or yearly basis.\n\n• Subscriptions automatically renew unless canceled at least 24 hours before the end of the current billing period.\n• You can manage or cancel your subscription through your Apple ID settings.\n• Refunds are handled by Apple according to their refund policies.\n• We reserve the right to change pricing with reasonable notice. Price changes will not affect your current billing period."
+    },
+    {
+      "heading": "4. Acceptable Use",
+      "body": "You agree to use the App only for lawful business purposes related to product sourcing, inventory management, and retail operations. You agree not to:\n\n• Use the App for any illegal or unauthorized purpose\n• Attempt to reverse-engineer, decompile, or disassemble the App\n• Interfere with or disrupt the App's servers or networks\n• Upload malicious content or attempt to gain unauthorized access to other users' data\n• Resell, sublicense, or redistribute the App or its features\n• Use automated systems to access the App in a manner that exceeds reasonable use"
+    },
+    {
+      "heading": "5. Your Content & Data",
+      "body": "You retain ownership of all product data, photos, vendor information, and other content you enter into the App (\"Your Content\"). By using the App, you grant us a limited license to store, process, and display Your Content solely to provide the App's services to you.\n\nYou are responsible for ensuring you have the right to use any photos, product images, or other materials you upload to the App."
+    },
+    {
+      "heading": "6. AI-Powered Features",
+      "body": "The App uses artificial intelligence for features such as label scanning and product data extraction. AI-generated results are provided as suggestions and may not always be accurate. You are responsible for reviewing and verifying any information produced by AI features before relying on it for business decisions."
+    },
+    {
+      "heading": "7. Third-Party Integrations",
+      "body": "The App may integrate with third-party services such as Shopify. Your use of third-party services is subject to their respective terms and policies. We are not responsible for the availability, accuracy, or practices of any third-party services."
+    },
+    {
+      "heading": "8. Intellectual Property",
+      "body": "The App, including its design, code, features, and branding, is the property of Digital Haute and is protected by copyright, trademark, and other intellectual property laws. These Terms do not grant you any right to use our trademarks, logos, or branding."
+    },
+    {
+      "heading": "9. Disclaimer of Warranties",
+      "body": "THE APP IS PROVIDED \"AS IS\" AND \"AS AVAILABLE\" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. WE DO NOT WARRANT THAT THE APP WILL BE UNINTERRUPTED, ERROR-FREE, OR SECURE. WE DISCLAIM ALL WARRANTIES, INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT."
+    },
+    {
+      "heading": "10. Limitation of Liability",
+      "body": "TO THE MAXIMUM EXTENT PERMITTED BY LAW, DIGITAL HAUTE SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, OR ANY LOSS OF PROFITS, DATA, OR BUSINESS OPPORTUNITIES ARISING OUT OF OR RELATED TO YOUR USE OF THE APP. OUR TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM."
+    },
+    {
+      "heading": "11. Termination",
+      "body": "We may suspend or terminate your access to the App at any time for violation of these Terms or for any other reason at our discretion. You may delete your account at any time through the App's Data & Privacy settings. Upon termination, your right to use the App ceases immediately."
+    },
+    {
+      "heading": "12. Changes to These Terms",
+      "body": "We may update these Terms from time to time. We will notify you of material changes by posting the updated Terms in the App and updating the effective date. Your continued use of the App after changes constitutes acceptance of the updated Terms."
+    },
+    {
+      "heading": "13. Governing Law",
+      "body": "These Terms are governed by and construed in accordance with the laws of the State of California, without regard to its conflict of law provisions. Any disputes arising from these Terms shall be resolved in the courts located in Los Angeles County, California."
+    },
+    {
+      "heading": "14. Contact Us",
+      "body": "If you have questions about these Terms, contact us at:\n\nsupport@digitalhaute.com"
+    }
+  ]
+}

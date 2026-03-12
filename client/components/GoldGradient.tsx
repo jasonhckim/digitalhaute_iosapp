@@ -1,6 +1,7 @@
 import React from "react";
 import { LinearGradient } from "expo-linear-gradient";
 import { StyleSheet, ViewStyle, StyleProp } from "react-native";
+import { BrandColors } from "@/constants/theme";
 
 interface GoldGradientProps {
   style?: StyleProp<ViewStyle>;
@@ -10,7 +11,7 @@ interface GoldGradientProps {
 export function GoldGradient({ style, children }: GoldGradientProps) {
   return (
     <LinearGradient
-      colors={["#D4AF37", "#F4D03F"]}
+      colors={[BrandColors.camel, BrandColors.camelLight]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[styles.gradient, style]}

@@ -5,9 +5,12 @@ import { Feather } from "@expo/vector-icons";
 
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import AddProductScreen from "@/screens/AddProductScreen";
+import EditProductScreen from "@/screens/EditProductScreen";
 import AddVendorScreen from "@/screens/AddVendorScreen";
 import EditVendorScreen from "@/screens/EditVendorScreen";
 import AddBudgetScreen from "@/screens/AddBudgetScreen";
+import EditBudgetScreen from "@/screens/EditBudgetScreen";
+import BudgetOverviewScreen from "@/screens/BudgetOverviewScreen";
 import QuickAddProductScreen from "@/screens/QuickAddProductScreen";
 import ProductDetailScreen from "@/screens/ProductDetailScreen";
 import VendorDetailScreen from "@/screens/VendorDetailScreen";
@@ -19,7 +22,7 @@ import RegisterScreen from "@/screens/RegisterScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { BrandColors } from "@/constants/theme";
+import { BrandColors, FontFamilies } from "@/constants/theme";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
 export type RootStackParamList = {
@@ -28,9 +31,12 @@ export type RootStackParamList = {
   Register: undefined;
   Main: { screen?: string; params?: { screen?: string } } | undefined;
   AddProduct: undefined;
+  EditProduct: { productId: string };
   AddVendor: undefined;
   EditVendor: { vendorId: string };
   AddBudget: undefined;
+  EditBudget: { budgetId: string };
+  BudgetOverview: undefined;
   QuickAddProduct: undefined;
   ProductDetail: { productId: string };
   VendorDetail: { vendorId: string };
@@ -92,6 +98,19 @@ export default function RootStackNavigator() {
             })}
           />
           <Stack.Screen
+            name="EditProduct"
+            component={EditProductScreen}
+            options={({ navigation }) => ({
+              headerTitle: "Edit Product",
+              presentation: "modal",
+              headerLeft: () => (
+                <HeaderButton onPress={() => navigation.goBack()}>
+                  <Feather name="x" size={24} color={theme.text} />
+                </HeaderButton>
+              ),
+            })}
+          />
+          <Stack.Screen
             name="AddVendor"
             component={AddVendorScreen}
             options={({ navigation }) => ({
@@ -122,6 +141,32 @@ export default function RootStackNavigator() {
             component={AddBudgetScreen}
             options={({ navigation }) => ({
               headerTitle: "Add Budget",
+              presentation: "modal",
+              headerLeft: () => (
+                <HeaderButton onPress={() => navigation.goBack()}>
+                  <Feather name="x" size={24} color={theme.text} />
+                </HeaderButton>
+              ),
+            })}
+          />
+          <Stack.Screen
+            name="EditBudget"
+            component={EditBudgetScreen}
+            options={({ navigation }) => ({
+              headerTitle: "Edit Budget",
+              presentation: "modal",
+              headerLeft: () => (
+                <HeaderButton onPress={() => navigation.goBack()}>
+                  <Feather name="x" size={24} color={theme.text} />
+                </HeaderButton>
+              ),
+            })}
+          />
+          <Stack.Screen
+            name="BudgetOverview"
+            component={BudgetOverviewScreen}
+            options={({ navigation }) => ({
+              headerTitle: "Budget Overview",
               presentation: "modal",
               headerLeft: () => (
                 <HeaderButton onPress={() => navigation.goBack()}>
@@ -167,15 +212,10 @@ export default function RootStackNavigator() {
           <Stack.Screen
             name="MultiScan"
             component={MultiScanScreen}
-            options={({ navigation }) => ({
-              headerTitle: "Multi-Scan",
-              presentation: "modal",
-              headerLeft: () => (
-                <HeaderButton onPress={() => navigation.goBack()}>
-                  <Feather name="x" size={24} color={theme.text} />
-                </HeaderButton>
-              ),
-            })}
+            options={{
+              presentation: "fullScreenModal",
+              headerShown: false,
+            }}
           />
           {/* Allow guest users to navigate to Login/Register as modals */}
           <Stack.Screen

@@ -1,17 +1,28 @@
 import { Platform } from "react-native";
 
 export const BrandColors = {
-  gold: "#D4AF37",
-  goldLight: "#F4D03F",
-  goldDark: "#B8960C",
+  cream: "#FAF6F1",
+  creamDark: "#F0EBE3",
+  creamDarker: "#E8E2DA",
+  sand: "#D4C5B2",
+  camel: "#C4956A",
+  camelLight: "#D4A574",
+  camelDark: "#A87B52",
+  peach: "#E8C9A8",
+  black: "#1A1A1A",
   white: "#FFFFFF",
-  surface: "#FAFAFA",
   textPrimary: "#1A1A1A",
   textSecondary: "#6B6B6B",
   textTertiary: "#9B9B9B",
-  border: "#E8E8E8",
+  border: "#E0D8CE",
   error: "#DC2626",
   success: "#059669",
+
+  // Legacy aliases
+  gold: "#C4956A",
+  goldLight: "#D4A574",
+  goldDark: "#A87B52",
+  surface: "#F0EBE3",
 };
 
 export const StatusColors = {
@@ -30,15 +41,15 @@ export const Colors = {
     textTertiary: BrandColors.textTertiary,
     buttonText: "#FFFFFF",
     tabIconDefault: BrandColors.textTertiary,
-    tabIconSelected: BrandColors.gold,
-    link: BrandColors.gold,
-    backgroundRoot: BrandColors.white,
-    backgroundDefault: BrandColors.surface,
-    backgroundSecondary: "#F5F5F5",
-    backgroundTertiary: "#EFEFEF",
+    tabIconSelected: BrandColors.camel,
+    link: BrandColors.camel,
+    backgroundRoot: BrandColors.cream,
+    backgroundDefault: BrandColors.creamDark,
+    backgroundSecondary: BrandColors.creamDarker,
+    backgroundTertiary: BrandColors.sand,
     border: BrandColors.border,
-    gold: BrandColors.gold,
-    goldLight: BrandColors.goldLight,
+    gold: BrandColors.camel,
+    goldLight: BrandColors.camelLight,
     error: BrandColors.error,
     success: BrandColors.success,
   },
@@ -48,15 +59,15 @@ export const Colors = {
     textTertiary: "#707070",
     buttonText: "#FFFFFF",
     tabIconDefault: "#9BA1A6",
-    tabIconSelected: BrandColors.goldLight,
-    link: BrandColors.goldLight,
+    tabIconSelected: BrandColors.camelLight,
+    link: BrandColors.camelLight,
     backgroundRoot: "#1A1A1A",
     backgroundDefault: "#252525",
     backgroundSecondary: "#303030",
     backgroundTertiary: "#3A3A3A",
     border: "#404040",
-    gold: BrandColors.goldLight,
-    goldLight: BrandColors.goldLight,
+    gold: BrandColors.camelLight,
+    goldLight: BrandColors.camelLight,
     error: "#EF4444",
     success: "#10B981",
   },
@@ -89,18 +100,18 @@ export const BorderRadius = {
 
 export const Shadows = {
   card: {
-    shadowColor: "#000",
+    shadowColor: "#8B7355",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 2,
   },
   fab: {
-    shadowColor: "#000",
+    shadowColor: "#8B7355",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
-    elevation: 6,
+    elevation: 4,
   },
 };
 
@@ -197,22 +208,45 @@ export const Typography = {
   },
 };
 
+export const FontFamilies = {
+  serif: Platform.select({
+    ios: "PlayfairDisplay_700Bold",
+    android: "PlayfairDisplay_700Bold",
+    default: "PlayfairDisplay_700Bold",
+  }) as string,
+  serifItalic: Platform.select({
+    ios: "PlayfairDisplay_700Bold_Italic",
+    android: "PlayfairDisplay_700Bold_Italic",
+    default: "PlayfairDisplay_700Bold_Italic",
+  }) as string,
+  serifRegular: Platform.select({
+    ios: "PlayfairDisplay_400Regular",
+    android: "PlayfairDisplay_400Regular",
+    default: "PlayfairDisplay_400Regular",
+  }) as string,
+  serifSemiBold: Platform.select({
+    ios: "PlayfairDisplay_600SemiBold",
+    android: "PlayfairDisplay_600SemiBold",
+    default: "PlayfairDisplay_600SemiBold",
+  }) as string,
+};
+
 export const Fonts = Platform.select({
   ios: {
     sans: "system-ui",
-    serif: "ui-serif",
+    serif: "PlayfairDisplay_700Bold",
     rounded: "ui-rounded",
     mono: "ui-monospace",
   },
   default: {
     sans: "normal",
-    serif: "serif",
+    serif: "PlayfairDisplay_700Bold",
     rounded: "normal",
     mono: "monospace",
   },
   web: {
     sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
+    serif: "'Playfair Display', Georgia, 'Times New Roman', serif",
     rounded:
       "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",

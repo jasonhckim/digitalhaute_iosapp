@@ -9,7 +9,7 @@ import Animated, {
 
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing, BorderRadius, BrandColors } from "@/constants/theme";
 
 interface CardProps {
   elevation?: number;
@@ -28,19 +28,16 @@ const springConfig: WithSpringConfig = {
   energyThreshold: 0.001,
 };
 
-const getBackgroundColorForElevation = (
-  elevation: number,
-  theme: any,
-): string => {
+const getBackgroundColorForElevation = (elevation: number): string => {
   switch (elevation) {
     case 1:
-      return theme.backgroundDefault;
+      return BrandColors.creamDark;
     case 2:
-      return theme.backgroundSecondary;
+      return BrandColors.creamDarker;
     case 3:
-      return theme.backgroundTertiary;
+      return BrandColors.sand;
     default:
-      return theme.backgroundRoot;
+      return BrandColors.cream;
   }
 };
 
@@ -57,7 +54,7 @@ export function Card({
   const { theme } = useTheme();
   const scale = useSharedValue(1);
 
-  const cardBackgroundColor = getBackgroundColorForElevation(elevation, theme);
+  const cardBackgroundColor = getBackgroundColorForElevation(elevation);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

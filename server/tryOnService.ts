@@ -186,13 +186,13 @@ Generate the final retail-ready image now.`;
 export async function generateTryOnImage(
   options: TryOnOptions,
 ): Promise<TryOnResult> {
-  const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 
   if (!apiKey) {
     return {
       success: false,
       error:
-        "Gemini API key not configured. Add EXPO_PUBLIC_GEMINI_API_KEY to your environment.",
+        "Gemini API key not configured. Add GEMINI_API_KEY to your environment.",
     };
   }
 

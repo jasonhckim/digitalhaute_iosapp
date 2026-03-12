@@ -5,12 +5,15 @@ import {
   Alert,
   Pressable,
   ActivityIndicator,
+  TextInput,
+  Image,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useHeaderHeight } from "@react-navigation/elements";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 
 import { QuickCamera } from "@/components/QuickCamera";
 import { Select } from "@/components/Select";
@@ -26,19 +29,22 @@ import {
   Typography,
 } from "@/constants/theme";
 import { ProductStorage, VendorStorage, EventStorage } from "@/lib/storage";
-import { Vendor, SEASONS, ProductStatus } from "@/types";
+import { Vendor, SEASONS, CATEGORIES, ProductStatus } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { scanLabelImage } from "@/lib/scanLabel";
+import { scanLabelImage, LabelScanResult } from "@/lib/scanLabel";
+import { useAuth } from "@/contexts/AuthContext";
+import { PLANS } from "@/lib/plans";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type Step = "setup" | "label_camera" | "product_camera";
+type Step = "setup" | "label_camera" | "product_camera" | "review";
 
 export default function MultiScanScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   const [step, setStep] = useState<Step>("setup");
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -50,9 +56,21 @@ export default function MultiScanScreen() {
 
   // Scan state
   const [scannedCount, setScannedCount] = useState(0);
-  const [processingCount, setProcessingCount] = useState(0);
   const currentProductIdRef = useRef<string | null>(null);
   const currentLabelBase64Ref = useRef<string | null>(null);
+  const currentProductImageRef = useRef<string | null>(null);
+
+  // Review/edit state
+  const [scanResult, setScanResult] = useState<LabelScanResult | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editStyleNumber, setEditStyleNumber] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editWholesalePrice, setEditWholesalePrice] = useState("");
+  const [editRetailPrice, setEditRetailPrice] = useState("");
+  const [editColors, setEditColors] = useState("");
+  const [editQuantity, setEditQuantity] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   useEffect(() => {
     VendorStorage.getAll().then(setVendors);
@@ -79,6 +97,32 @@ export default function MultiScanScreen() {
 
   const handleLabelCaptured = async (uri: string, base64?: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Soft product limit check for free plan
+    const plan = user?.subscriptionPlan ?? "free";
+    const maxProducts = PLANS[plan]?.maxProducts ?? 10;
+    if (maxProducts !== Infinity) {
+      const existing = await ProductStorage.getAll();
+      if (existing.length >= maxProducts) {
+        Alert.alert(
+          "Product Limit Reached",
+          `Your Free plan is limited to ${maxProducts} products. Upgrade to Starter for unlimited products.`,
+          [
+            {
+              text: "Upgrade to Starter",
+              onPress: () => {
+                navigation.navigate("Main", {
+                  screen: "AccountTab",
+                  params: { screen: "Billing" },
+                });
+              },
+            },
+            { text: "Continue Anyway" },
+          ],
+        );
+        // Soft limit — don't block, just notify. Continue creating.
+      }
+    }
 
     // Create placeholder product immediately
     const vendor = vendors.find((v) => v.id === sessionVendorId);
@@ -112,52 +156,82 @@ export default function MultiScanScreen() {
     const labelBase64 = currentLabelBase64Ref.current;
 
     if (productId) {
-      // Update product with image URI
       await ProductStorage.update(productId, { imageUri: uri });
-
-      setScannedCount((c) => c + 1);
-
-      // Fire background scan
-      if (labelBase64) {
-        setProcessingCount((c) => c + 1);
-        scanInBackground(productId, labelBase64);
-      } else {
-        // No label scan, mark as complete with defaults
-        await ProductStorage.update(productId, { scanStatus: "complete" });
-      }
+      currentProductImageRef.current = uri;
     }
 
-    // Reset refs and loop back to label camera
-    currentProductIdRef.current = null;
-    currentLabelBase64Ref.current = null;
-    setStep("label_camera");
+    // Move to review step — scan label while showing the form
+    await startReview();
   };
 
-  const scanInBackground = async (productId: string, base64: string) => {
-    try {
-      const result = await scanLabelImage(base64);
+  const startReview = async () => {
+    const labelBase64 = currentLabelBase64Ref.current;
 
-      if (result) {
-        await ProductStorage.update(productId, {
-          name: result.styleNumber || result.styleName || "Scanned Product",
-          styleNumber: result.styleNumber || "",
-          wholesalePrice: result.wholesalePrice || 0,
-          retailPrice: result.retailPrice || undefined,
-          colors: result.colors || [],
-          sizes: result.sizes || [],
-          category: result.category || "",
-          notes: result.notes || undefined,
-          scanStatus: "complete",
-        });
-      } else {
-        await ProductStorage.update(productId, { scanStatus: "failed" });
+    // Reset edit fields
+    setEditName("");
+    setEditStyleNumber("");
+    setEditCategory("");
+    setEditWholesalePrice("");
+    setEditRetailPrice("");
+    setEditColors("");
+    setEditQuantity("");
+    setEditNotes("");
+    setScanResult(null);
+
+    setStep("review");
+
+    if (labelBase64) {
+      setScanLoading(true);
+      try {
+        const result = await scanLabelImage(labelBase64);
+        setScanResult(result);
+        if (result) {
+          setEditName(result.styleName || "");
+          setEditStyleNumber(result.styleNumber || "");
+          setEditCategory(result.category || "");
+          setEditWholesalePrice(result.wholesalePrice ? result.wholesalePrice.toString() : "");
+          setEditRetailPrice(result.retailPrice ? result.retailPrice.toString() : "");
+          setEditColors(result.colors ? result.colors.join(", ") : "");
+          setEditNotes(result.notes || "");
+        }
+      } catch (error) {
+        console.error("Scan error:", error);
+      } finally {
+        setScanLoading(false);
       }
-    } catch (error) {
-      console.error("Background scan error:", error);
-      await ProductStorage.update(productId, { scanStatus: "failed" });
-    } finally {
-      setProcessingCount((c) => Math.max(0, c - 1));
     }
+  };
+
+  const handleConfirmProduct = async () => {
+    const productId = currentProductIdRef.current;
+    if (!productId) return;
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const colors = editColors
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    await ProductStorage.update(productId, {
+      name: editStyleNumber || editName || "Scanned Product",
+      styleNumber: editStyleNumber,
+      category: editCategory,
+      wholesalePrice: parseFloat(editWholesalePrice) || 0,
+      retailPrice: editRetailPrice ? parseFloat(editRetailPrice) : undefined,
+      colors,
+      quantity: parseInt(editQuantity, 10) || 0,
+      notes: editNotes || undefined,
+      scanStatus: "complete",
+    });
+
+    setScannedCount((c) => c + 1);
+
+    // Reset and loop back
+    currentProductIdRef.current = null;
+    currentLabelBase64Ref.current = null;
+    currentProductImageRef.current = null;
+    setStep("label_camera");
   };
 
   const handleDone = () => {
@@ -170,24 +244,55 @@ export default function MultiScanScreen() {
     }
   };
 
-  const handleSkipProductPhoto = async () => {
-    const productId = currentProductIdRef.current;
-    const labelBase64 = currentLabelBase64Ref.current;
-
-    if (productId) {
-      setScannedCount((c) => c + 1);
-
-      if (labelBase64) {
-        setProcessingCount((c) => c + 1);
-        scanInBackground(productId, labelBase64);
-      } else {
-        await ProductStorage.update(productId, { scanStatus: "complete" });
-      }
+  const handlePickFromGalleryForLabel = async () => {
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Please allow photo library access to select images.",
+      );
+      return;
     }
 
-    currentProductIdRef.current = null;
-    currentLabelBase64Ref.current = null;
-    setStep("label_camera");
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.5,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      await handleLabelCaptured(asset.uri, asset.base64 ?? undefined);
+    }
+  };
+
+  const handlePickFromGalleryForProduct = async () => {
+    const { status } =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Please allow photo library access to select images.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: false,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await handleProductCaptured(result.assets[0].uri);
+    }
+  };
+
+  const handleSkipProductPhoto = async () => {
+    currentProductImageRef.current = null;
+    await startReview();
   };
 
   const vendorOptions = vendors.map((v) => ({ label: v.name, value: v.id }));
@@ -197,8 +302,19 @@ export default function MultiScanScreen() {
   if (step === "setup") {
     return (
       <ThemedView
-        style={[styles.container, { paddingTop: headerHeight + Spacing.xl }]}
+        style={[styles.container, { paddingTop: insets.top }]}
       >
+        <View style={styles.setupHeader}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            hitSlop={8}
+            style={styles.setupCloseButton}
+          >
+            <Feather name="x" size={24} color={theme.text} />
+          </Pressable>
+          <ThemedText style={styles.setupHeaderTitle}>Multi-Scan</ThemedText>
+          <View style={{ width: 40 }} />
+        </View>
         <KeyboardAwareScrollViewCompat
           contentContainerStyle={styles.setupContent}
           showsVerticalScrollIndicator={false}
@@ -283,22 +399,23 @@ export default function MultiScanScreen() {
           includeBase64
           title="Scan Label"
         />
-        {/* Overlay: Done button + count badge */}
+        {/* Overlay: Gallery (left) + Done (right) */}
         <View style={styles.scanOverlay}>
-          <Pressable style={styles.doneButton} onPress={handleDone}>
-            <Feather name="check-circle" size={20} color="#fff" />
-            <ThemedText style={styles.doneText}>
-              Done{scannedCount > 0 ? ` (${scannedCount})` : ""}
-            </ThemedText>
+          <Pressable
+            style={styles.galleryButton}
+            onPress={handlePickFromGalleryForLabel}
+          >
+            <Feather name="image" size={20} color="#fff" />
+            <ThemedText style={styles.galleryText}>Gallery</ThemedText>
           </Pressable>
-          {processingCount > 0 ? (
-            <View style={styles.processingBadge}>
-              <ActivityIndicator size="small" color={BrandColors.gold} />
-              <ThemedText style={styles.processingText}>
-                {processingCount} processing
+          <View style={styles.overlayRight}>
+            <Pressable style={styles.doneButton} onPress={handleDone}>
+              <Feather name="check-circle" size={20} color="#fff" />
+              <ThemedText style={styles.doneText}>
+                Done{scannedCount > 0 ? ` (${scannedCount})` : ""}
               </ThemedText>
-            </View>
-          ) : null}
+            </Pressable>
+          </View>
         </View>
       </View>
     );
@@ -316,6 +433,13 @@ export default function MultiScanScreen() {
         />
         <View style={styles.scanOverlay}>
           <Pressable
+            style={styles.galleryButton}
+            onPress={handlePickFromGalleryForProduct}
+          >
+            <Feather name="image" size={20} color="#fff" />
+            <ThemedText style={styles.galleryText}>Gallery</ThemedText>
+          </Pressable>
+          <Pressable
             style={styles.skipPhotoButton}
             onPress={handleSkipProductPhoto}
           >
@@ -324,6 +448,177 @@ export default function MultiScanScreen() {
           </Pressable>
         </View>
       </View>
+    );
+  }
+
+  // Review/edit step
+  if (step === "review") {
+    const categoryOptions = CATEGORIES.map((c) => ({ label: c, value: c }));
+
+    return (
+      <ThemedView
+        style={[styles.container, { paddingTop: insets.top + Spacing.md }]}
+      >
+        <KeyboardAwareScrollViewCompat
+          contentContainerStyle={styles.reviewContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Product image thumbnail */}
+          {currentProductImageRef.current && (
+            <Image
+              source={{ uri: currentProductImageRef.current }}
+              style={styles.reviewImage}
+              resizeMode="cover"
+            />
+          )}
+
+          <View style={styles.reviewHeader}>
+            <ThemedText style={[styles.reviewTitle, { color: theme.text }]}>
+              Review Product
+            </ThemedText>
+            {scanLoading && (
+              <View style={styles.scanningRow}>
+                <ActivityIndicator size="small" color={BrandColors.gold} />
+                <ThemedText style={{ color: theme.textSecondary, fontSize: 13 }}>
+                  Scanning label...
+                </ThemedText>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.reviewField}>
+            <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+              Style Number
+            </ThemedText>
+            <TextInput
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              value={editStyleNumber}
+              onChangeText={setEditStyleNumber}
+              placeholder="Enter style number"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </View>
+
+          <View style={styles.reviewField}>
+            <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+              Style Name
+            </ThemedText>
+            <TextInput
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="Enter style name"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </View>
+
+          <View style={styles.reviewField}>
+            <Select
+              label="Category"
+              placeholder="Select category..."
+              options={categoryOptions}
+              value={editCategory}
+              onChange={setEditCategory}
+            />
+          </View>
+
+          <View style={styles.reviewRow}>
+            <View style={[styles.reviewField, { flex: 1 }]}>
+              <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+                Wholesale $
+              </ThemedText>
+              <TextInput
+                style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+                value={editWholesalePrice}
+                onChangeText={setEditWholesalePrice}
+                placeholder="0.00"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={[styles.reviewField, { flex: 1 }]}>
+              <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+                Retail $
+              </ThemedText>
+              <TextInput
+                style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+                value={editRetailPrice}
+                onChangeText={setEditRetailPrice}
+                placeholder="0.00"
+                placeholderTextColor={theme.textSecondary}
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+
+          <View style={styles.reviewField}>
+            <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+              Quantity
+            </ThemedText>
+            <TextInput
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              value={editQuantity}
+              onChangeText={setEditQuantity}
+              placeholder="Enter quantity"
+              placeholderTextColor={theme.textSecondary}
+              keyboardType="number-pad"
+            />
+          </View>
+
+          <View style={styles.reviewField}>
+            <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+              Colors (comma separated)
+            </ThemedText>
+            <TextInput
+              style={[styles.reviewInput, { color: theme.text, borderColor: theme.border }]}
+              value={editColors}
+              onChangeText={setEditColors}
+              placeholder="Black, White, Red"
+              placeholderTextColor={theme.textSecondary}
+            />
+          </View>
+
+          <View style={styles.reviewField}>
+            <ThemedText style={[styles.reviewLabel, { color: theme.textSecondary }]}>
+              Notes
+            </ThemedText>
+            <TextInput
+              style={[styles.reviewInput, styles.reviewInputMulti, { color: theme.text, borderColor: theme.border }]}
+              value={editNotes}
+              onChangeText={setEditNotes}
+              placeholder="Optional notes"
+              placeholderTextColor={theme.textSecondary}
+              multiline
+              numberOfLines={2}
+            />
+          </View>
+
+          <View style={styles.reviewButtons}>
+            <Button onPress={handleConfirmProduct} style={{ flex: 1 }}>
+              Confirm & Next
+            </Button>
+          </View>
+
+          <Pressable
+            style={styles.reviewSkip}
+            onPress={() => {
+              // Skip without saving — delete the placeholder product
+              const productId = currentProductIdRef.current;
+              if (productId) {
+                ProductStorage.delete(productId);
+              }
+              currentProductIdRef.current = null;
+              currentLabelBase64Ref.current = null;
+              currentProductImageRef.current = null;
+              setStep("label_camera");
+            }}
+          >
+            <ThemedText style={{ color: theme.textSecondary, fontSize: 14 }}>
+              Discard this product
+            </ThemedText>
+          </Pressable>
+        </KeyboardAwareScrollViewCompat>
+      </ThemedView>
     );
   }
 
@@ -382,6 +677,26 @@ const styles = StyleSheet.create({
     bottom: 120,
     left: Spacing.lg,
     right: Spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  galleryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.full,
+  },
+  galleryText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  overlayRight: {
+    flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
   },
@@ -425,6 +740,78 @@ const styles = StyleSheet.create({
   skipPhotoText: {
     color: "#fff",
     fontSize: 15,
+    fontWeight: "600",
+  },
+  reviewContent: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing["3xl"],
+  },
+  reviewImage: {
+    width: "100%",
+    height: 160,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.md,
+  },
+  reviewHeader: {
+    marginBottom: Spacing.lg,
+  },
+  reviewTitle: {
+    fontSize: Typography.sizes.xl,
+    fontWeight: "700",
+  },
+  scanningRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  reviewField: {
+    marginBottom: Spacing.md,
+  },
+  reviewLabel: {
+    fontSize: Typography.sizes.sm,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm + 2,
+    fontSize: 16,
+  },
+  reviewInputMulti: {
+    minHeight: 60,
+    textAlignVertical: "top",
+  },
+  reviewRow: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  reviewButtons: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  reviewSkip: {
+    alignItems: "center",
+    paddingVertical: Spacing.lg,
+  },
+  setupHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  setupCloseButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  setupHeaderTitle: {
+    fontSize: 17,
     fontWeight: "600",
   },
 });
