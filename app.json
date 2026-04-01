@@ -2,7 +2,7 @@
   "expo": {
     "name": "Digital Haute",
     "slug": "digital-haute",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitalhaute",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.digitalhaute.app",
+      "bundleIdentifier": "com.digitalhaute.iosapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -22,7 +22,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.digitalhaute.app",
+      "package": "com.digitalhaute.iosapp",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"

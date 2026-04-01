@@ -1,11 +1,12 @@
 import Purchases, {
+  type PurchasesOffering,
   type PurchasesPackage,
   type CustomerInfo,
   LOG_LEVEL,
 } from "react-native-purchases";
 
 // RevenueCat API key (public — safe to include in client code)
-const REVENUECAT_API_KEY = "appl_cjeTvhAoKVEjkUQkgHqeceSWhAm";
+const REVENUECAT_API_KEY = "appl_JNnhLrSVijDFFJMorldIceVsQzD";
 
 // Entitlement identifiers — must match what you configure in RevenueCat dashboard
 export const ENTITLEMENT_STARTER = "Starter";
@@ -53,8 +54,19 @@ export interface TierOfferings {
 export async function getOfferings(): Promise<TierOfferings> {
   const offerings = await Purchases.getOfferings();
 
+  // Debug: log all offering keys so we can verify they match
+  const allKeys = Object.keys(offerings.all);
+  console.log("[RC Debug] All offering keys:", allKeys);
+  console.log("[RC Debug] Current offering:", offerings.current?.identifier);
+
   const extract = (offeringId: string) => {
     const offering = offerings.all[offeringId];
+    console.log(
+      `[RC Debug] Offering "${offeringId}":`,
+      offering
+        ? `found (monthly: ${!!offering.monthly}, annual: ${!!offering.annual})`
+        : "NOT FOUND",
+    );
     return {
       monthly: offering?.monthly ?? null,
       yearly: offering?.annual ?? null,
@@ -66,6 +78,24 @@ export async function getOfferings(): Promise<TierOfferings> {
     growth: extract("growth"),
     vip: extract("vip"),
   };
+}
+
+/**
+ * Get raw offering keys from RevenueCat (for debugging).
+ */
+export async function getOfferingKeys(): Promise<string[]> {
+  const offerings = await Purchases.getOfferings();
+  return Object.keys(offerings.all);
+}
+
+/**
+ * Get a specific offering object by ID (needed for presenting the correct paywall).
+ */
+export async function getOfferingById(
+  offeringId: string,
+): Promise<PurchasesOffering | null> {
+  const offerings = await Purchases.getOfferings();
+  return offerings.all[offeringId] ?? null;
 }
 
 /**

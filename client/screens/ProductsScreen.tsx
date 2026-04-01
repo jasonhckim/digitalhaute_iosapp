@@ -48,6 +48,106 @@ import { hasFeature } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const SHOPIFY_TEMPLATE_HEADERS = [
+  "Title",
+  "URL handle",
+  "Description",
+  "Vendor",
+  "Product category",
+  "Type",
+  "Tags",
+  "Published on online store",
+  "Status",
+  "SKU",
+  "Barcode",
+  "Option1 name",
+  "Option1 value",
+  "Option1 Linked To",
+  "Option2 name",
+  "Option2 value",
+  "Option2 Linked To",
+  "Option3 name",
+  "Option3 value",
+  "Option3 Linked To",
+  "Price",
+  "Compare-at price",
+  "Cost per item",
+  "Charge tax",
+  "Tax code",
+  "Unit price total measure",
+  "Unit price total measure unit",
+  "Unit price base measure",
+  "Unit price base measure unit",
+  "Inventory tracker",
+  "Inventory quantity",
+  "Continue selling when out of stock",
+  "Weight value (grams)",
+  "Weight unit for display",
+  "Requires shipping",
+  "Fulfillment service",
+  "Product image URL",
+  "Image position",
+  "Image alt text",
+  "Variant image URL",
+  "Gift card",
+  "SEO title",
+  "SEO description",
+  "Color (product.metafields.shopify.color-pattern)",
+  "Google Shopping / Google product category",
+  "Google Shopping / Gender",
+  "Google Shopping / Age group",
+  "Google Shopping / Manufacturer part number (MPN)",
+  "Google Shopping / Ad group name",
+  "Google Shopping / Ads labels",
+  "Google Shopping / Condition",
+  "Google Shopping / Custom product",
+  "Google Shopping / Custom label 0",
+  "Google Shopping / Custom label 1",
+  "Google Shopping / Custom label 2",
+  "Google Shopping / Custom label 3",
+  "Google Shopping / Custom label 4",
+];
+
+const COLOR_METAFIELD = "product.metafields.shopify.color-pattern";
+const DEFAULT_GOOGLE_AGE_GROUP = "Adult";
+const DEFAULT_GOOGLE_GENDER = "Unisex";
+
+const GOOGLE_CATEGORY_BY_PRODUCT_CATEGORY: Record<string, string> = {
+  tops: "Apparel & Accessories > Clothing > Shirts & Tops",
+  bottoms: "Apparel & Accessories > Clothing > Pants",
+  dresses: "Apparel & Accessories > Clothing > Dresses",
+  outerwear: "Apparel & Accessories > Clothing > Outerwear",
+  "2pcs set": "Apparel & Accessories > Clothing > Clothing Sets",
+  "3pcs set": "Apparel & Accessories > Clothing > Clothing Sets",
+  "rompers & jumpsuits": "Apparel & Accessories > Clothing > One-Pieces",
+  accessories: "Apparel & Accessories",
+  shoes: "Apparel & Accessories > Shoes",
+  bags: "Apparel & Accessories > Handbags, Wallets & Cases",
+  jewelry: "Apparel & Accessories > Jewelry",
+};
+
+function toShopifyStatus(status: Product["status"]): string {
+  if (status === "cancelled") return "draft";
+  if (status === "maybe") return "draft";
+  return "active";
+}
+
+function toGoogleProductCategory(category: string): string {
+  const normalized = category.trim().toLowerCase();
+  return (
+    GOOGLE_CATEGORY_BY_PRODUCT_CATEGORY[normalized] ||
+    "Apparel & Accessories > Clothing"
+  );
+}
+
+function toHandle(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 export default function ProductsScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
@@ -144,64 +244,57 @@ export default function ProductsScreen() {
     const selectedProducts = products.filter((p) => selectedIds.has(p.id));
     if (selectedProducts.length === 0) return;
 
-    const headers = [
-      "Title",
-      "Handle",
-      "Body (HTML)",
-      "Vendor",
-      "Product Category",
-      "Type",
-      "Tags",
-      "Published",
-      "Option1 Name",
-      "Option1 Value",
-      "Option2 Name",
-      "Option2 Value",
-      "Variant SKU",
-      "Variant Grams",
-      "Variant Inventory Tracker",
-      "Variant Inventory Qty",
-      "Variant Inventory Policy",
-      "Variant Fulfillment Service",
-      "Variant Price",
-      "Variant Compare At Price",
-      "Variant Requires Shipping",
-      "Variant Taxable",
-      "Image Src",
-      "Image Position",
-      "Cost per item",
-    ];
-
     const rows: string[][] = [];
 
     for (const product of selectedProducts) {
-      const handle = product.styleNumber
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-");
+      const productKey = product.styleNumber || product.name || product.id;
+      const handle = toHandle(productKey);
       const retailPrice =
         product.retailPrice ||
         calculateRetailPrice(product.wholesalePrice, settings);
-      const colors = product.selectedColors?.length
+      const colors = (product.selectedColors?.length
         ? product.selectedColors
-        : product.colors;
-      const sizes = product.sizes || [];
+        : product.colors
+      ).filter(Boolean);
+      const sizes = (product.sizes || []).filter(Boolean);
+      const normalizedColors = colors.length > 0 ? colors : [""];
+      const normalizedSizes = sizes.length > 0 ? sizes : [""];
       const packRatio = product.packRatio;
+      const shopifyStatus = toShopifyStatus(product.status);
+      const googleProductCategory = toGoogleProductCategory(product.category);
+      const tags = [product.season, product.category, product.collection, product.event]
+        .filter(Boolean)
+        .join(", ");
+      const colorMetafieldValue = colors.join("; ");
+      const option1Name = sizes.length > 0 ? "Size" : "Title";
+      const option2Name = colors.length > 0 ? "Color" : "";
+      const option2LinkedTo = colors.length > 0 ? COLOR_METAFIELD : "";
 
       let isFirstRow = true;
 
-      for (const color of colors) {
-        for (let sizeIdx = 0; sizeIdx < sizes.length; sizeIdx++) {
-          const size = sizes[sizeIdx];
+      for (const color of normalizedColors) {
+        for (let sizeIdx = 0; sizeIdx < normalizedSizes.length; sizeIdx++) {
+          const size = normalizedSizes[sizeIdx];
           let qty = 0;
 
-          if (packRatio && product.packs) {
+          if (sizes.length > 0 && packRatio && product.packs) {
             const qtyPerSize = packRatio.quantities[sizeIdx] || 0;
             qty = qtyPerSize * product.packs;
           } else {
-            qty = Math.floor(product.quantity / (colors.length * sizes.length));
+            const variantCount = normalizedColors.length * normalizedSizes.length;
+            qty = Math.max(0, Math.floor(product.quantity / variantCount));
           }
 
-          const sku = `${product.styleNumber}-${color.substring(0, 3).toUpperCase()}-${size.substring(0, 2).toUpperCase()}`;
+          const skuParts = [
+            product.styleNumber,
+            color ? color.substring(0, 3).toUpperCase() : "",
+            size ? size.substring(0, 2).toUpperCase() : "",
+          ].filter(Boolean);
+          const sku = skuParts.join("-") || product.id;
+          const option1Value = size || "Default Title";
+          const imageAltText = color
+            ? `${product.name} - ${color}`
+            : product.name;
 
           const row = [
             isFirstRow ? product.name : "",
@@ -210,25 +303,57 @@ export default function ProductsScreen() {
             isFirstRow ? product.vendorName : "",
             isFirstRow ? product.category : "",
             isFirstRow ? product.category : "",
-            isFirstRow ? `${product.season}, ${product.category}` : "",
+            isFirstRow ? tags : "",
             isFirstRow ? "TRUE" : "",
-            "Color",
-            color,
-            "Size",
-            size,
+            isFirstRow ? shopifyStatus : "",
             sku,
-            "0",
-            "shopify",
-            qty.toString(),
-            "deny",
-            "manual",
+            "",
+            option1Name,
+            option1Value,
+            "",
+            option2Name,
+            color,
+            option2LinkedTo,
+            "",
+            "",
+            "",
             retailPrice.toFixed(2),
             "",
-            "TRUE",
-            "TRUE",
-            isFirstRow && product.imageUri ? product.imageUri : "",
-            isFirstRow ? "1" : "",
             product.wholesalePrice.toFixed(2),
+            "TRUE",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "shopify",
+            String(qty),
+            "DENY",
+            "",
+            "g",
+            "TRUE",
+            "manual",
+            isFirstRow ? product.imageUri || "" : "",
+            isFirstRow ? "1" : "",
+            isFirstRow ? imageAltText : "",
+            "",
+            isFirstRow ? "FALSE" : "",
+            isFirstRow ? product.name : "",
+            isFirstRow ? product.notes || "" : "",
+            isFirstRow ? colorMetafieldValue : "",
+            isFirstRow ? googleProductCategory : "",
+            isFirstRow ? DEFAULT_GOOGLE_GENDER : "",
+            isFirstRow ? DEFAULT_GOOGLE_AGE_GROUP : "",
+            sku,
+            "",
+            "",
+            "New",
+            "FALSE",
+            "",
+            "",
+            "",
+            "",
+            "",
           ];
 
           rows.push(row);
@@ -238,7 +363,7 @@ export default function ProductsScreen() {
     }
 
     const csvContent = [
-      headers.join(","),
+      SHOPIFY_TEMPLATE_HEADERS.join(","),
       ...rows.map((row) =>
         row
           .map((cell) => {

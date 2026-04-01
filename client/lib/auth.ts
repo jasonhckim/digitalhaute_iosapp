@@ -196,7 +196,7 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
     const res = await authFetch("/api/auth/me");
     if (res.ok) {
       const body = await res.json();
-      return body.user;
+      if (body.user) return body.user;
     }
   } catch {
     // Server unreachable — fall through to Firebase fallback

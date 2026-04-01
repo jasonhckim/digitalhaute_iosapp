@@ -5,6 +5,7 @@ import {
   FlatList,
   RefreshControl,
   Pressable,
+  TextInput,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -59,6 +60,7 @@ export default function VendorsScreen() {
   const [vendors, setVendors] = useState<VendorWithStats[]>([]);
   const [sortMode, setSortMode] = useState<SortMode>("az");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const loadData = useCallback(async () => {
     try {
@@ -127,6 +129,11 @@ export default function VendorsScreen() {
   const displayedVendors = (() => {
     let list = [...vendors];
 
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter((v) => v.name.toLowerCase().includes(q));
+    }
+
     if (sortMode === "favorites") {
       list = list.filter((v) => v.isFavorite);
     }
@@ -173,6 +180,25 @@ export default function VendorsScreen() {
             <Feather name="plus" size={20} color={BrandColors.camel} />
             <ThemedText style={styles.addVendorText}>Add</ThemedText>
           </Pressable>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <Feather
+            name="search"
+            size={16}
+            color={BrandColors.textTertiary}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search vendors..."
+            placeholderTextColor={BrandColors.textTertiary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+          />
         </View>
 
         <FlatList
@@ -298,6 +324,26 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: BrandColors.camel,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: BrandColors.creamDark,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: BrandColors.border,
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.md,
+    height: 40,
+  },
+  searchIcon: {
+    marginRight: Spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: BrandColors.textPrimary,
+    paddingVertical: 0,
   },
   filterList: {
     marginHorizontal: -Spacing.lg,

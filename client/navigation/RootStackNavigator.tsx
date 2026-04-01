@@ -66,16 +66,6 @@ export default function RootStackNavigator() {
             component={WelcomeScreen}
             options={{ headerShown: false }}
           />
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-            options={{ headerShown: false }}
-          />
         </>
       ) : (
         <>
@@ -217,19 +207,18 @@ export default function RootStackNavigator() {
               headerShown: false,
             }}
           />
-          {/* Allow guest users to navigate to Login/Register as modals */}
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false, presentation: "modal" }}
-          />
-          <Stack.Screen
-            name="Register"
-            component={RegisterScreen}
-            options={{ headerShown: false, presentation: "modal" }}
-          />
         </>
       )}
+      <Stack.Group
+        navigationKey={isAuthenticated ? "user" : "guest"}
+        screenOptions={{
+          headerShown: false,
+          presentation: showApp ? "modal" : "card",
+        }}
+      >
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+      </Stack.Group>
     </Stack.Navigator>
   );
 }

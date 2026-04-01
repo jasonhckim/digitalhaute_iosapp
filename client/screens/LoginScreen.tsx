@@ -164,6 +164,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamilies.serif,
     color: BrandColors.textPrimary,
     marginBottom: Spacing.sm,
+    paddingTop: 4,
   },
   subtitle: {
     fontSize: 16,

@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
+import type { DecodedIdToken } from "firebase-admin/auth";
 import * as fs from "fs";
 import * as path from "path";
 import { profileSchema } from "@shared/schema";
@@ -20,6 +21,7 @@ declare global {
   namespace Express {
     interface Request {
       userId?: string;
+      authToken?: DecodedIdToken;
     }
   }
 }
@@ -63,11 +65,25 @@ export function authenticateToken(
     .verifyIdToken(token)
     .then((decoded) => {
       req.userId = decoded.uid;
+      req.authToken = decoded;
       next();
     })
     .catch(() => {
       return res.status(401).json({ error: "Invalid or expired token" });
     });
+}
+
+export function authenticateAdminToken(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  authenticateToken(req, res, () => {
+    if (req.authToken?.admin === true) {
+      return next();
+    }
+    return res.status(403).json({ error: "Admin access required" });
+  });
 }
 
 export function registerAuthRoutes(app: Express) {
@@ -87,6 +103,10 @@ export function registerAuthRoutes(app: Express) {
 
         const uid = req.userId!;
         const { businessName, name, role } = parsed.data;
+        const referralCode =
+          typeof req.body?.referralCode === "string"
+            ? req.body.referralCode
+            : undefined;
 
         // Get email from Firebase
         const firebaseUser = await admin.auth().getUser(uid);
@@ -95,6 +115,7 @@ export function registerAuthRoutes(app: Express) {
         // Check if profile already exists
         const existing = await storage.getUserById(uid);
         if (existing) {
+          await storage.getOrCreateAffiliateProfile(uid);
           const updated = await storage.updateUser(uid, {
             businessName,
             name,
@@ -110,6 +131,16 @@ export function registerAuthRoutes(app: Express) {
           email,
           role,
         });
+
+        await storage.getOrCreateAffiliateProfile(uid);
+        if (referralCode && referralCode.trim()) {
+          const result = await storage.applyReferralCodeToUser(uid, referralCode);
+          if (!result.applied) {
+            console.warn(
+              `Referral code not applied for ${uid}: ${result.reason || "unknown"}`,
+            );
+          }
+        }
 
         res.status(201).json({ user: sanitizeUser(user) });
       } catch (error) {

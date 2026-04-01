@@ -14,7 +14,7 @@ export const PLANS = {
     id: "starter" as const,
     name: "Starter",
     monthlyPrice: 29.99,
-    yearlyPrice: 323.89, // 10% off ($29.99 × 12 = $359.88 → $323.89)
+    yearlyPrice: 329.99, // ~8% off ($29.99 × 12 = $359.88 → $329.99)
     maxUsers: 1,
     maxProducts: Infinity,
     available: true,
@@ -23,7 +23,7 @@ export const PLANS = {
     id: "growth" as const,
     name: "Growth",
     monthlyPrice: 69.99,
-    yearlyPrice: 755.89, // 10% off ($69.99 × 12 = $839.88 → $755.89)
+    yearlyPrice: 759, // ~10% off ($69.99 × 12 = $839.88 → $759)
     maxUsers: 4,
     maxProducts: Infinity,
     available: true,

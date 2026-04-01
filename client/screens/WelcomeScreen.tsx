@@ -120,6 +120,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 34,
+    lineHeight: 46,
     fontFamily: FontFamilies.serif,
     color: BrandColors.textPrimary,
     marginBottom: Spacing.md,

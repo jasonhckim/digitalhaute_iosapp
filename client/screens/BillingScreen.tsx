@@ -19,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   getOfferings,
+  getOfferingById,
   restorePurchases,
   getCustomerInfo,
   getPlanFromCustomerInfo,
@@ -73,8 +74,9 @@ export default function BillingScreen() {
         getCustomerInfo(),
       ]);
       setOfferings(tierOfferings);
-      setCurrentPlan(getPlanFromCustomerInfo(customerInfo));
-    } catch (err) {
+      const plan = getPlanFromCustomerInfo(customerInfo);
+      setCurrentPlan(plan);
+    } catch (err: unknown) {
       console.warn("Failed to load billing data:", err);
     } finally {
       setIsLoading(false);
@@ -87,19 +89,21 @@ export default function BillingScreen() {
       const entitlement = PLAN_ENTITLEMENTS[planId];
       if (!entitlement) return;
 
-      // Check if offerings are available before presenting paywall
       const offeringTier = offerings?.[planId as keyof TierOfferings];
+
       if (!offeringTier?.monthly && !offeringTier?.yearly) {
         Alert.alert(
-          "Not Available Yet",
-          "This subscription is not available for purchase at this time. Please try again later.",
+          "Unavailable",
+          "This plan is currently unavailable. Please try again later.",
         );
         return;
       }
 
       try {
+        const offering = await getOfferingById(planId);
         const result = await RevenueCatUI.presentPaywallIfNeeded({
           requiredEntitlementIdentifier: entitlement,
+          offering: offering ?? undefined,
         });
 
         if (
@@ -110,11 +114,11 @@ export default function BillingScreen() {
           setCurrentPlan(getPlanFromCustomerInfo(info));
           await refreshUser();
         }
-      } catch (err) {
-        console.warn("Paywall error:", err);
+      } catch (err: unknown) {
+        const error = err as { message?: string };
         Alert.alert(
-          "Unable to Load",
-          "Could not load the subscription options. Please try again later.",
+          "Subscription Error",
+          error.message || "Something went wrong. Please try again.",
         );
       }
     },

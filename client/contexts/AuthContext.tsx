@@ -4,7 +4,6 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useRef,
   ReactNode,
 } from "react";
 import { onAuthStateChanged } from "firebase/auth";
@@ -57,8 +56,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  // Flag to prevent onAuthStateChanged from interfering during register/login
-  const authActionInProgress = useRef(false);
 
   useEffect(() => {
     // Add timeout to prevent infinite loading if Firebase fails
@@ -73,15 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         async (firebaseUser) => {
           clearTimeout(timeout); // Clear timeout on successful auth state change
 
-          // Skip if register/login is handling auth state directly
-          if (authActionInProgress.current) {
-            setIsLoading(false);
-            return;
-          }
-
           if (firebaseUser) {
             try {
-              // fetchCurrentUser now falls back to Firebase data if server is unreachable
               const profile = await fetchCurrentUser();
 
               // Identify user with RevenueCat and sync subscription plan
@@ -95,10 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 console.warn("RevenueCat identify failed:", rcErr);
               }
 
-              setUser(profile);
+              if (profile) {
+                setUser(profile);
+              }
             } catch (error) {
               console.error("Failed to fetch user profile:", error);
-              setUser(null);
             }
           } else {
             setUser(null);
@@ -139,29 +130,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    authActionInProgress.current = true;
-    try {
-      await loginUser({ email, password });
-      setIsGuest(false);
-      // Fetch profile (falls back to Firebase data if server is unreachable)
-      const profile = await fetchCurrentUser();
-      if (profile) {
-        setUser(profile);
-      }
-    } finally {
-      authActionInProgress.current = false;
+    await loginUser({ email, password });
+    setIsGuest(false);
+    const profile = await fetchCurrentUser();
+    if (profile) {
+      setUser(profile);
     }
   }, []);
 
   const loginWithApple = useCallback(async () => {
-    authActionInProgress.current = true;
-    try {
-      const profile = await signInWithAppleApi();
-      setUser(profile);
-      setIsGuest(false);
-    } finally {
-      authActionInProgress.current = false;
-    }
+    const profile = await signInWithAppleApi();
+    setUser(profile);
+    setIsGuest(false);
   }, []);
 
   const register = useCallback(
@@ -172,15 +152,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password: string;
       role: string;
     }) => {
-      // Prevent onAuthStateChanged from racing with registration
-      authActionInProgress.current = true;
-      try {
-        const profile = await registerUser(data);
-        setUser(profile);
-        setIsGuest(false);
-      } finally {
-        authActionInProgress.current = false;
-      }
+      const profile = await registerUser(data);
+      setUser(profile);
+      setIsGuest(false);
     },
     [],
   );
