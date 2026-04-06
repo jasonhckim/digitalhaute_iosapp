@@ -17,11 +17,12 @@ const CACHED_PROFILE_KEY = "@digitalhaute/cached_profile";
 async function authFetch(
   route: string,
   options: RequestInit = {},
+  forceRefresh = false,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const token = await auth.currentUser?.getIdToken();
+  const token = await auth.currentUser?.getIdToken(forceRefresh);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
@@ -30,16 +31,22 @@ async function authFetch(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Abort after 5 seconds so auth doesn't hang when server is unreachable
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
   try {
-    return await fetch(url.toString(), {
+    const res = await fetch(url.toString(), {
       ...options,
       headers,
       signal: controller.signal,
     });
+
+    if (res.status === 401 && !forceRefresh && auth.currentUser) {
+      clearTimeout(timeoutId);
+      return authFetch(route, options, true);
+    }
+
+    return res;
   } finally {
     clearTimeout(timeoutId);
   }

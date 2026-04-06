@@ -25,6 +25,29 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+async function doApiRequest(
+  method: string,
+  url: URL,
+  data: unknown | undefined,
+  forceRefresh: boolean,
+): Promise<Response> {
+  const headers: Record<string, string> = {};
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  const token = await auth.currentUser?.getIdToken(forceRefresh);
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  return fetch(url, {
+    method,
+    headers,
+    body: data ? JSON.stringify(data) : undefined,
+  });
+}
+
 export async function apiRequest(
   method: string,
   route: string,
@@ -33,24 +56,26 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const headers: Record<string, string> = {};
-  if (data) {
-    headers["Content-Type"] = "application/json";
-  }
+  let res = await doApiRequest(method, url, data, false);
 
-  const token = await auth.currentUser?.getIdToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+  if (res.status === 401 && auth.currentUser) {
+    res = await doApiRequest(method, url, data, true);
   }
-
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-  });
 
   await throwIfResNotOk(res);
   return res;
+}
+
+async function fetchWithToken(
+  url: URL,
+  forceRefresh: boolean,
+): Promise<Response> {
+  const headers: Record<string, string> = {};
+  const token = await auth.currentUser?.getIdToken(forceRefresh);
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  return fetch(url, { headers });
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -62,15 +87,11 @@ export const getQueryFn: <T>(options: {
     const baseUrl = getApiUrl();
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
-    const headers: Record<string, string> = {};
-    const token = await auth.currentUser?.getIdToken();
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+    let res = await fetchWithToken(url, false);
 
-    const res = await fetch(url, {
-      headers,
-    });
+    if (res.status === 401 && auth.currentUser) {
+      res = await fetchWithToken(url, true);
+    }
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

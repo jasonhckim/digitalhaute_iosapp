@@ -102,6 +102,7 @@ export default function CollaborationScreen() {
   const {
     data: affiliateData,
     isLoading: isLoadingProfile,
+    error: affiliateError,
   } = useQuery<AffiliateMeResponse>({
     queryKey: ["api", "affiliates", "me"],
   });
@@ -179,6 +180,26 @@ export default function CollaborationScreen() {
     return (
       <ThemedView style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={BrandColors.gold} />
+      </ThemedView>
+    );
+  }
+
+  if (affiliateError && !affiliateData) {
+    const isAuthError = affiliateError.message?.includes("401");
+    return (
+      <ThemedView style={[styles.container, styles.centered]}>
+        <Feather
+          name={isAuthError ? "lock" : "alert-circle"}
+          size={40}
+          color={theme.textTertiary}
+        />
+        <ThemedText
+          style={{ color: theme.textSecondary, marginTop: Spacing.md, textAlign: "center", paddingHorizontal: Spacing.xl }}
+        >
+          {isAuthError
+            ? "Your session has expired. Please log out and log back in to access your referral code."
+            : "Unable to load referral data. Please check your connection and try again."}
+        </ThemedText>
       </ThemedView>
     );
   }
