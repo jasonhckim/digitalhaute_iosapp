@@ -169,7 +169,14 @@ function configureExpoAndLanding(app: express.Application) {
     "templates",
     "landing-page.html",
   );
-  const landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+
+  let landingPageTemplate: string | null = null;
+  try {
+    landingPageTemplate = fs.readFileSync(templatePath, "utf-8");
+  } catch {
+    log("Landing page template not found — skipping landing page routes");
+  }
+
   const appName = getAppName();
 
   log("Serving static Expo files with dynamic manifest routing");
@@ -188,7 +195,7 @@ function configureExpoAndLanding(app: express.Application) {
       return serveExpoManifest(platform, res);
     }
 
-    if (req.path === "/") {
+    if (req.path === "/" && landingPageTemplate) {
       return serveLandingPage({
         req,
         res,
@@ -200,8 +207,15 @@ function configureExpoAndLanding(app: express.Application) {
     next();
   });
 
-  app.use("/assets", express.static(path.resolve(process.cwd(), "assets")));
-  app.use(express.static(path.resolve(process.cwd(), "static-build")));
+  const assetsPath = path.resolve(process.cwd(), "assets");
+  if (fs.existsSync(assetsPath)) {
+    app.use("/assets", express.static(assetsPath));
+  }
+
+  const staticBuildPath = path.resolve(process.cwd(), "static-build");
+  if (fs.existsSync(staticBuildPath)) {
+    app.use(express.static(staticBuildPath));
+  }
 
   log("Expo routing: Checking expo-platform header on / and /manifest");
 }

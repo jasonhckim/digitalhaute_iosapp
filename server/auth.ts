@@ -6,7 +6,7 @@ import * as path from "path";
 import { profileSchema } from "@shared/schema";
 import { storage } from "./storage";
 
-function loadFirebaseCredential(): admin.credential.Credential {
+function loadFirebaseCredential(): admin.credential.Credential | null {
   const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (envJson) {
     try {
@@ -23,14 +23,19 @@ function loadFirebaseCredential(): admin.credential.Credential {
     return admin.credential.cert(serviceAccount);
   }
 
-  throw new Error(
-    "Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT env var or provide firebase-service-account.json",
+  console.error(
+    "WARNING: Firebase credentials not found. Auth endpoints will not work. " +
+      "Set FIREBASE_SERVICE_ACCOUNT env var or provide firebase-service-account.json",
   );
+  return null;
 }
 
-admin.initializeApp({
-  credential: loadFirebaseCredential(),
-});
+const firebaseCred = loadFirebaseCredential();
+if (firebaseCred) {
+  admin.initializeApp({ credential: firebaseCred });
+} else {
+  admin.initializeApp();
+}
 
 declare global {
   namespace Express {
