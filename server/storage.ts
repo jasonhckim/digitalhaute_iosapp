@@ -1,17 +1,27 @@
 import {
   affiliateProfiles,
   type AffiliateProfile,
+  budgets,
   commissionLedger,
+  events,
   type InsertUser,
   payoutRequests,
   payoutMethodEnum,
   type PayoutRequest,
   payoutStatusEnum,
+  products,
   referrals,
+  teamInvitations,
+  type TeamInvitation,
+  teamMembers,
+  type TeamMember,
+  teamRoleEnum,
   type User,
   users,
+  userSettings,
+  vendors,
 } from "@shared/schema";
-import { and, asc, desc, eq, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 
@@ -112,74 +122,47 @@ export interface IStorage {
     externalTransferId: string;
     note?: string;
   }): Promise<PayoutRequest | undefined>;
+
+  createTeamInvitation(
+    inviterUserId: string,
+    email: string,
+    role: (typeof teamRoleEnum)[number],
+  ): Promise<TeamInvitation>;
+  listTeamInvitations(
+    ownerUserId: string,
+  ): Promise<TeamInvitation[]>;
+  cancelTeamInvitation(
+    ownerUserId: string,
+    invitationId: string,
+  ): Promise<boolean>;
+  acceptTeamInvitation(
+    token: string,
+    acceptingUserId: string,
+  ): Promise<{ success: boolean; reason?: string }>;
+  declineTeamInvitation(token: string): Promise<boolean>;
+  listTeamMembers(
+    ownerUserId: string,
+  ): Promise<
+    Array<
+      TeamMember & {
+        memberName: string;
+        memberEmail: string;
+      }
+    >
+  >;
+  removeTeamMember(ownerUserId: string, memberId: string): Promise<boolean>;
+  updateTeamMemberRole(
+    ownerUserId: string,
+    memberId: string,
+    role: (typeof teamRoleEnum)[number],
+  ): Promise<boolean>;
+  getTeamMemberCount(ownerUserId: string): Promise<number>;
+  getTeamForUser(
+    userId: string,
+  ): Promise<{ ownerUserId: string; role: string } | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
-  private readonly bootstrapPromise: Promise<void>;
-
-  constructor() {
-    this.bootstrapPromise = this.bootstrapAffiliateTables();
-  }
-
-  private async ready(): Promise<void> {
-    await this.bootstrapPromise;
-  }
-
-  private async bootstrapAffiliateTables(): Promise<void> {
-    // Keep tables available in existing environments even before drizzle db:push runs.
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS affiliate_profiles (
-        user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-        referral_code TEXT NOT NULL UNIQUE,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS referrals (
-        id TEXT PRIMARY KEY,
-        referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        referred_user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-        code_used TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS commission_ledger (
-        id TEXT PRIMARY KEY,
-        revenuecat_event_id TEXT UNIQUE,
-        referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        referred_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        event_type TEXT NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'USD',
-        net_revenue_cents INTEGER NOT NULL,
-        commission_cents INTEGER NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        available_at TEXT NOT NULL,
-        note TEXT,
-        created_at TEXT NOT NULL DEFAULT (datetime('now')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-      )
-    `);
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS payout_requests (
-        id TEXT PRIMARY KEY,
-        referrer_user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-        amount_cents INTEGER NOT NULL,
-        method TEXT NOT NULL,
-        destination TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'requested',
-        requested_at TEXT NOT NULL DEFAULT (datetime('now')),
-        reviewed_at TEXT,
-        paid_at TEXT,
-        reviewed_by_admin_user_id TEXT,
-        external_transfer_id TEXT,
-        note TEXT
-      )
-    `);
-  }
-
   private normalizeCode(code: string): string {
     return code.trim().toUpperCase();
   }
@@ -208,20 +191,19 @@ export class DatabaseStorage implements IStorage {
     return day !== 0 && day !== 6;
   }
 
+  // ── User CRUD ──────────────────────────────────────────────────
+
   async getUserById(id: string): Promise<User | undefined> {
-    await this.ready();
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    await this.ready();
     const result = await db.select().from(users).where(eq(users.email, email));
     return result[0];
   }
 
   async createUser(user: InsertUser): Promise<User> {
-    await this.ready();
     const result = await db.insert(users).values(user).returning();
     return result[0];
   }
@@ -235,7 +217,6 @@ export class DatabaseStorage implements IStorage {
       >
     >,
   ): Promise<User | undefined> {
-    await this.ready();
     const result = await db
       .update(users)
       .set({ ...data, updatedAt: new Date().toISOString() })
@@ -245,12 +226,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUser(id: string): Promise<void> {
-    await this.ready();
     await db.delete(users).where(eq(users.id, id));
   }
 
+  // ── Affiliate ──────────────────────────────────────────────────
+
   async getOrCreateAffiliateProfile(userId: string): Promise<AffiliateProfile> {
-    await this.ready();
     const existing = await db
       .select()
       .from(affiliateProfiles)
@@ -270,7 +251,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async findUserByReferralCode(code: string): Promise<User | undefined> {
-    await this.ready();
     const normalized = this.normalizeCode(code);
     const rows = await db
       .select({ user: users })
@@ -289,7 +269,6 @@ export class DatabaseStorage implements IStorage {
     referredUserId: string,
     code: string,
   ): Promise<{ applied: boolean; reason?: string }> {
-    await this.ready();
     const normalized = this.normalizeCode(code);
     const existingReferral = await db
       .select()
@@ -326,7 +305,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async rollPendingCommissionsToAvailable(): Promise<void> {
-    await this.ready();
     await db
       .update(commissionLedger)
       .set({
@@ -349,7 +327,6 @@ export class DatabaseStorage implements IStorage {
     netRevenueCents: number;
     note?: string;
   }): Promise<void> {
-    await this.ready();
     const referral = await db
       .select()
       .from(referrals)
@@ -403,7 +380,6 @@ export class DatabaseStorage implements IStorage {
     requestedCents: number;
     paidCents: number;
   }> {
-    await this.ready();
     await this.rollPendingCommissionsToAvailable();
 
     const referralRows = await db
@@ -460,7 +436,6 @@ export class DatabaseStorage implements IStorage {
       referredSubscriptionPlan: string;
     }>
   > {
-    await this.ready();
     const rows = await db
       .select({
         referredUserId: referrals.referredUserId,
@@ -482,7 +457,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async listAffiliatePayoutRequests(userId: string): Promise<PayoutRequest[]> {
-    await this.ready();
     return db
       .select()
       .from(payoutRequests)
@@ -496,7 +470,6 @@ export class DatabaseStorage implements IStorage {
     method: (typeof payoutMethodEnum)[number];
     destination: string;
   }): Promise<PayoutRequest> {
-    await this.ready();
     await this.rollPendingCommissionsToAvailable();
 
     const minPayoutCents = parseInt(process.env.MIN_PAYOUT_CENTS || "5000", 10);
@@ -560,7 +533,6 @@ export class DatabaseStorage implements IStorage {
     requestedCents: number;
     paidThisMonthCents: number;
   }> {
-    await this.ready();
     await this.rollPendingCommissionsToAvailable();
 
     const referredCountRows = await db
@@ -606,8 +578,8 @@ export class DatabaseStorage implements IStorage {
     }, 0);
 
     return {
-      totalReferredSignups: referredCountRows[0]?.count ?? 0,
-      activePaidReferrals: activePaidRows[0]?.count ?? 0,
+      totalReferredSignups: Number(referredCountRows[0]?.count ?? 0),
+      activePaidReferrals: Number(activePaidRows[0]?.count ?? 0),
       pendingCents,
       availableCents,
       requestedCents,
@@ -629,7 +601,6 @@ export class DatabaseStorage implements IStorage {
       referredSubscriptionPlan: string;
     }>
   > {
-    await this.ready();
     const rows = await db
       .select({
         id: referrals.id,
@@ -662,7 +633,6 @@ export class DatabaseStorage implements IStorage {
       }
     >
   > {
-    await this.ready();
     const rows = await db
       .select({
         id: payoutRequests.id,
@@ -691,7 +661,6 @@ export class DatabaseStorage implements IStorage {
     id: string,
     adminUserId: string,
   ): Promise<PayoutRequest | undefined> {
-    await this.ready();
     const existing = await db
       .select()
       .from(payoutRequests)
@@ -740,7 +709,6 @@ export class DatabaseStorage implements IStorage {
     adminUserId: string,
     note?: string,
   ): Promise<PayoutRequest | undefined> {
-    await this.ready();
     const existing = await db
       .select()
       .from(payoutRequests)
@@ -795,7 +763,6 @@ export class DatabaseStorage implements IStorage {
     externalTransferId: string;
     note?: string;
   }): Promise<PayoutRequest | undefined> {
-    await this.ready();
     const now = new Date();
     if (!this.isBusinessDay(now)) {
       throw new Error("Payouts can only be marked paid on business days");
@@ -851,6 +818,689 @@ export class DatabaseStorage implements IStorage {
       .where(eq(payoutRequests.id, input.id))
       .returning();
     return updated[0];
+  }
+
+  // ── Team Members ──────────────────────────────────────────────────
+
+  private getMaxTeamMembers(plan: string | null | undefined): number {
+    switch (plan) {
+      case "vip":
+        return 6;
+      case "growth":
+        return 4;
+      default:
+        return 1;
+    }
+  }
+
+  async getTeamMemberCount(ownerUserId: string): Promise<number> {
+    const rows = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.ownerUserId, ownerUserId),
+          isNull(teamMembers.removedAt),
+        ),
+      );
+    return Number(rows[0]?.count ?? 0);
+  }
+
+  async createTeamInvitation(
+    inviterUserId: string,
+    email: string,
+    role: (typeof teamRoleEnum)[number],
+  ): Promise<TeamInvitation> {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const owner = await this.getUserById(inviterUserId);
+    if (!owner) throw new Error("User not found");
+
+    const maxMembers = this.getMaxTeamMembers(owner.subscriptionPlan);
+    const currentCount = await this.getTeamMemberCount(inviterUserId);
+    const pendingInvites = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.inviterUserId, inviterUserId),
+          eq(teamInvitations.status, "pending"),
+        ),
+      );
+    const pendingCount = Number(pendingInvites[0]?.count ?? 0);
+
+    if (currentCount + pendingCount + 1 >= maxMembers) {
+      throw new Error(
+        `Team limit reached. Your ${owner.subscriptionPlan} plan supports up to ${maxMembers} users (including yourself).`,
+      );
+    }
+
+    const existingMember = await db
+      .select()
+      .from(teamMembers)
+      .innerJoin(users, eq(users.id, teamMembers.memberUserId))
+      .where(
+        and(
+          eq(teamMembers.ownerUserId, inviterUserId),
+          isNull(teamMembers.removedAt),
+          eq(users.email, normalizedEmail),
+        ),
+      );
+    if (existingMember.length > 0) {
+      throw new Error("This person is already on your team.");
+    }
+
+    const existingInvite = await db
+      .select()
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.inviterUserId, inviterUserId),
+          eq(teamInvitations.email, normalizedEmail),
+          eq(teamInvitations.status, "pending"),
+        ),
+      );
+    if (existingInvite.length > 0) {
+      throw new Error("An invitation has already been sent to this email.");
+    }
+
+    const token = randomUUID();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const created = await db
+      .insert(teamInvitations)
+      .values({
+        id: randomUUID(),
+        inviterUserId,
+        email: normalizedEmail,
+        role,
+        token,
+        expiresAt: expiresAt.toISOString(),
+      })
+      .returning();
+
+    return created[0];
+  }
+
+  async listTeamInvitations(ownerUserId: string): Promise<TeamInvitation[]> {
+    return db
+      .select()
+      .from(teamInvitations)
+      .where(eq(teamInvitations.inviterUserId, ownerUserId))
+      .orderBy(desc(teamInvitations.createdAt));
+  }
+
+  async cancelTeamInvitation(
+    ownerUserId: string,
+    invitationId: string,
+  ): Promise<boolean> {
+    const existing = await db
+      .select()
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.id, invitationId),
+          eq(teamInvitations.inviterUserId, ownerUserId),
+          eq(teamInvitations.status, "pending"),
+        ),
+      );
+    if (!existing[0]) return false;
+
+    await db
+      .update(teamInvitations)
+      .set({ status: "expired" })
+      .where(eq(teamInvitations.id, invitationId));
+    return true;
+  }
+
+  async acceptTeamInvitation(
+    token: string,
+    acceptingUserId: string,
+  ): Promise<{ success: boolean; reason?: string }> {
+    const rows = await db
+      .select()
+      .from(teamInvitations)
+      .where(eq(teamInvitations.token, token));
+    const invitation = rows[0];
+
+    if (!invitation) return { success: false, reason: "Invitation not found." };
+    if (invitation.status !== "pending") {
+      return { success: false, reason: "This invitation is no longer valid." };
+    }
+    if (new Date(invitation.expiresAt) < new Date()) {
+      await db
+        .update(teamInvitations)
+        .set({ status: "expired" })
+        .where(eq(teamInvitations.id, invitation.id));
+      return { success: false, reason: "This invitation has expired." };
+    }
+
+    if (invitation.inviterUserId === acceptingUserId) {
+      return { success: false, reason: "You cannot accept your own invitation." };
+    }
+
+    const alreadyMember = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.ownerUserId, invitation.inviterUserId),
+          eq(teamMembers.memberUserId, acceptingUserId),
+          isNull(teamMembers.removedAt),
+        ),
+      );
+    if (alreadyMember.length > 0) {
+      await db
+        .update(teamInvitations)
+        .set({ status: "accepted" })
+        .where(eq(teamInvitations.id, invitation.id));
+      return { success: false, reason: "You are already on this team." };
+    }
+
+    await db.insert(teamMembers).values({
+      id: randomUUID(),
+      ownerUserId: invitation.inviterUserId,
+      memberUserId: acceptingUserId,
+      role: invitation.role,
+    });
+
+    await db
+      .update(teamInvitations)
+      .set({ status: "accepted" })
+      .where(eq(teamInvitations.id, invitation.id));
+
+    return { success: true };
+  }
+
+  async declineTeamInvitation(token: string): Promise<boolean> {
+    const rows = await db
+      .select()
+      .from(teamInvitations)
+      .where(
+        and(
+          eq(teamInvitations.token, token),
+          eq(teamInvitations.status, "pending"),
+        ),
+      );
+    if (!rows[0]) return false;
+
+    await db
+      .update(teamInvitations)
+      .set({ status: "declined" })
+      .where(eq(teamInvitations.id, rows[0].id));
+    return true;
+  }
+
+  async listTeamMembers(
+    ownerUserId: string,
+  ): Promise<
+    Array<
+      TeamMember & {
+        memberName: string;
+        memberEmail: string;
+      }
+    >
+  > {
+    const rows = await db
+      .select({
+        id: teamMembers.id,
+        ownerUserId: teamMembers.ownerUserId,
+        memberUserId: teamMembers.memberUserId,
+        role: teamMembers.role,
+        joinedAt: teamMembers.joinedAt,
+        removedAt: teamMembers.removedAt,
+        memberName: users.name,
+        memberEmail: users.email,
+      })
+      .from(teamMembers)
+      .innerJoin(users, eq(users.id, teamMembers.memberUserId))
+      .where(
+        and(
+          eq(teamMembers.ownerUserId, ownerUserId),
+          isNull(teamMembers.removedAt),
+        ),
+      )
+      .orderBy(asc(teamMembers.joinedAt));
+
+    return rows;
+  }
+
+  async removeTeamMember(ownerUserId: string, memberId: string): Promise<boolean> {
+    const existing = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.id, memberId),
+          eq(teamMembers.ownerUserId, ownerUserId),
+          isNull(teamMembers.removedAt),
+        ),
+      );
+    if (!existing[0]) return false;
+
+    await db
+      .update(teamMembers)
+      .set({ removedAt: new Date().toISOString() })
+      .where(eq(teamMembers.id, memberId));
+    return true;
+  }
+
+  async updateTeamMemberRole(
+    ownerUserId: string,
+    memberId: string,
+    role: (typeof teamRoleEnum)[number],
+  ): Promise<boolean> {
+    const existing = await db
+      .select()
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.id, memberId),
+          eq(teamMembers.ownerUserId, ownerUserId),
+          isNull(teamMembers.removedAt),
+        ),
+      );
+    if (!existing[0]) return false;
+
+    await db
+      .update(teamMembers)
+      .set({ role })
+      .where(eq(teamMembers.id, memberId));
+    return true;
+  }
+
+  async getTeamForUser(
+    userId: string,
+  ): Promise<{ ownerUserId: string; role: string } | undefined> {
+    const rows = await db
+      .select({
+        ownerUserId: teamMembers.ownerUserId,
+        role: teamMembers.role,
+      })
+      .from(teamMembers)
+      .where(
+        and(
+          eq(teamMembers.memberUserId, userId),
+          isNull(teamMembers.removedAt),
+        ),
+      );
+    return rows[0];
+  }
+
+  // ── Products ──────────────────────────────────────────────────
+
+  async listProducts(userId: string) {
+    return db
+      .select()
+      .from(products)
+      .where(eq(products.userId, userId))
+      .orderBy(desc(products.createdAt));
+  }
+
+  async getProductById(userId: string, id: string) {
+    const rows = await db
+      .select()
+      .from(products)
+      .where(and(eq(products.id, id), eq(products.userId, userId)));
+    return rows[0];
+  }
+
+  async createProduct(
+    userId: string,
+    data: Omit<typeof products.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">,
+  ) {
+    const now = new Date().toISOString();
+    const result = await db
+      .insert(products)
+      .values({
+        ...data,
+        id: randomUUID(),
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    return result[0];
+  }
+
+  async updateProduct(
+    userId: string,
+    id: string,
+    data: Partial<Omit<typeof products.$inferInsert, "id" | "userId" | "createdAt">>,
+  ) {
+    const result = await db
+      .update(products)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(and(eq(products.id, id), eq(products.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteProduct(userId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(products)
+      .where(and(eq(products.id, id), eq(products.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async getProductsByVendor(userId: string, vendorId: string) {
+    return db
+      .select()
+      .from(products)
+      .where(and(eq(products.userId, userId), eq(products.vendorId, vendorId)))
+      .orderBy(desc(products.createdAt));
+  }
+
+  async bulkCreateProducts(
+    userId: string,
+    items: Array<Omit<typeof products.$inferInsert, "userId" | "createdAt" | "updatedAt">>,
+  ) {
+    if (items.length === 0) return [];
+    const now = new Date().toISOString();
+    const values = items.map((item) => ({
+      ...item,
+      id: item.id || randomUUID(),
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    return db.insert(products).values(values).returning();
+  }
+
+  // ── Vendors ──────────────────────────────────────────────────
+
+  async listVendors(userId: string) {
+    return db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.userId, userId))
+      .orderBy(desc(vendors.createdAt));
+  }
+
+  async getVendorById(userId: string, id: string) {
+    const rows = await db
+      .select()
+      .from(vendors)
+      .where(and(eq(vendors.id, id), eq(vendors.userId, userId)));
+    return rows[0];
+  }
+
+  async createVendor(
+    userId: string,
+    data: Omit<typeof vendors.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">,
+  ) {
+    const now = new Date().toISOString();
+    const result = await db
+      .insert(vendors)
+      .values({
+        ...data,
+        id: randomUUID(),
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    return result[0];
+  }
+
+  async updateVendor(
+    userId: string,
+    id: string,
+    data: Partial<Omit<typeof vendors.$inferInsert, "id" | "userId" | "createdAt">>,
+  ) {
+    const result = await db
+      .update(vendors)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(and(eq(vendors.id, id), eq(vendors.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteVendor(userId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(vendors)
+      .where(and(eq(vendors.id, id), eq(vendors.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async bulkCreateVendors(
+    userId: string,
+    items: Array<Omit<typeof vendors.$inferInsert, "userId" | "createdAt" | "updatedAt">>,
+  ) {
+    if (items.length === 0) return [];
+    const now = new Date().toISOString();
+    const values = items.map((item) => ({
+      ...item,
+      id: item.id || randomUUID(),
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    return db.insert(vendors).values(values).returning();
+  }
+
+  // ── Budgets ──────────────────────────────────────────────────
+
+  async listBudgets(userId: string) {
+    return db
+      .select()
+      .from(budgets)
+      .where(eq(budgets.userId, userId))
+      .orderBy(desc(budgets.createdAt));
+  }
+
+  async getBudgetById(userId: string, id: string) {
+    const rows = await db
+      .select()
+      .from(budgets)
+      .where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+    return rows[0];
+  }
+
+  async createBudget(
+    userId: string,
+    data: Omit<typeof budgets.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt">,
+  ) {
+    const now = new Date().toISOString();
+    const result = await db
+      .insert(budgets)
+      .values({
+        ...data,
+        id: randomUUID(),
+        userId,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+    return result[0];
+  }
+
+  async updateBudget(
+    userId: string,
+    id: string,
+    data: Partial<Omit<typeof budgets.$inferInsert, "id" | "userId" | "createdAt">>,
+  ) {
+    const result = await db
+      .update(budgets)
+      .set({ ...data, updatedAt: new Date().toISOString() })
+      .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+      .returning();
+    return result[0];
+  }
+
+  async deleteBudget(userId: string, id: string): Promise<boolean> {
+    const result = await db
+      .delete(budgets)
+      .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+      .returning();
+    return result.length > 0;
+  }
+
+  async updateBudgetSpent(userId: string): Promise<void> {
+    const [allBudgets, allProducts] = await Promise.all([
+      this.listBudgets(userId),
+      this.listProducts(userId),
+    ]);
+
+    for (const budget of allBudgets) {
+      let spent = 0;
+      for (const product of allProducts) {
+        if (product.season !== budget.season) continue;
+        if (budget.category && product.category !== budget.category) continue;
+        if (budget.vendorId && product.vendorId !== budget.vendorId) continue;
+        if (product.status !== "cancelled") {
+          spent += Number(product.wholesalePrice) * product.quantity;
+        }
+      }
+      await db
+        .update(budgets)
+        .set({ spent: String(spent), updatedAt: new Date().toISOString() })
+        .where(eq(budgets.id, budget.id));
+    }
+  }
+
+  async bulkCreateBudgets(
+    userId: string,
+    items: Array<Omit<typeof budgets.$inferInsert, "userId" | "createdAt" | "updatedAt">>,
+  ) {
+    if (items.length === 0) return [];
+    const now = new Date().toISOString();
+    const values = items.map((item) => ({
+      ...item,
+      id: item.id || randomUUID(),
+      userId,
+      createdAt: now,
+      updatedAt: now,
+    }));
+    return db.insert(budgets).values(values).returning();
+  }
+
+  // ── Events ──────────────────────────────────────────────────
+
+  async listEvents(userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ name: events.name })
+      .from(events)
+      .where(eq(events.userId, userId))
+      .orderBy(desc(events.createdAt));
+    return rows.map((r) => r.name);
+  }
+
+  async addEvent(userId: string, name: string): Promise<string[]> {
+    const existing = await this.listEvents(userId);
+    const exists = existing.some(
+      (e) => e.toLowerCase() === name.trim().toLowerCase(),
+    );
+    if (!exists && name.trim()) {
+      await db.insert(events).values({
+        id: randomUUID(),
+        userId,
+        name: name.trim(),
+      });
+    }
+    return this.listEvents(userId);
+  }
+
+  async deleteEvent(userId: string, name: string): Promise<string[]> {
+    await db
+      .delete(events)
+      .where(
+        and(
+          eq(events.userId, userId),
+          sql`lower(${events.name}) = ${name.toLowerCase()}`,
+        ),
+      );
+    return this.listEvents(userId);
+  }
+
+  async bulkCreateEvents(userId: string, names: string[]) {
+    if (names.length === 0) return;
+    const values = names.map((name) => ({
+      id: randomUUID(),
+      userId,
+      name: name.trim(),
+    }));
+    await db.insert(events).values(values);
+  }
+
+  // ── User Settings ──────────────────────────────────────────────────
+
+  async getUserSettings(userId: string) {
+    const rows = await db
+      .select()
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId));
+    if (rows[0]) {
+      return {
+        markupMultiplier: Number(rows[0].markupMultiplier),
+        roundingMode: rows[0].roundingMode as "none" | "up" | "even",
+      };
+    }
+    return { markupMultiplier: 2.5, roundingMode: "none" as const };
+  }
+
+  async upsertUserSettings(
+    userId: string,
+    data: { markupMultiplier: number; roundingMode: "none" | "up" | "even" },
+  ) {
+    const existing = await db
+      .select()
+      .from(userSettings)
+      .where(eq(userSettings.userId, userId));
+
+    if (existing[0]) {
+      await db
+        .update(userSettings)
+        .set({
+          markupMultiplier: String(data.markupMultiplier),
+          roundingMode: data.roundingMode,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(userSettings.userId, userId));
+    } else {
+      await db.insert(userSettings).values({
+        userId,
+        markupMultiplier: String(data.markupMultiplier),
+        roundingMode: data.roundingMode,
+      });
+    }
+
+    return data;
+  }
+
+  // ── Dashboard Stats ──────────────────────────────────────────────────
+
+  async getDashboardStats(userId: string) {
+    const [allProducts, allVendors, allBudgets] = await Promise.all([
+      this.listProducts(userId),
+      this.listVendors(userId),
+      this.listBudgets(userId),
+    ]);
+
+    const activeProducts = allProducts.filter((p) => p.status !== "cancelled");
+
+    const upcomingDeliveries = activeProducts
+      .filter((p) => p.deliveryDate && new Date(p.deliveryDate) >= new Date())
+      .sort(
+        (a, b) =>
+          new Date(a.deliveryDate).getTime() - new Date(b.deliveryDate).getTime(),
+      );
+
+    const totalBudget = allBudgets.reduce((sum, b) => sum + Number(b.amount), 0);
+    const totalSpent = allBudgets.reduce((sum, b) => sum + Number(b.spent), 0);
+
+    return {
+      totalProducts: activeProducts.length,
+      totalVendors: allVendors.length,
+      nextDeliveryDate: upcomingDeliveries[0]?.deliveryDate,
+      budgetUtilization: totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0,
+      totalBudget,
+      totalSpent,
+      totalRemaining: totalBudget - totalSpent,
+    };
   }
 }
 

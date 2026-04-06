@@ -12,13 +12,13 @@
       },
       "channel": "development",
       "env": {
+        "EXPO_PUBLIC_DOMAIN": "localhost:5000",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
-        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyB6JvE-Dq-P-q7l3kE4tAb7Cvr71K4Ghug"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
       }
     },
     "development": {
@@ -27,13 +27,13 @@
       "autoIncrement": true,
       "channel": "development",
       "env": {
+        "EXPO_PUBLIC_DOMAIN": "localhost:5000",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
-        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyB6JvE-Dq-P-q7l3kE4tAb7Cvr71K4Ghug"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
       }
     },
     "preview": {
@@ -41,26 +41,26 @@
       "autoIncrement": true,
       "channel": "preview",
       "env": {
+        "EXPO_PUBLIC_DOMAIN": "digitalhaute-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
-        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyB6JvE-Dq-P-q7l3kE4tAb7Cvr71K4Ghug"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
+        "EXPO_PUBLIC_DOMAIN": "digitalhaute-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
-        "EXPO_PUBLIC_GEMINI_API_KEY": "AIzaSyB6JvE-Dq-P-q7l3kE4tAb7Cvr71K4Ghug"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
       }
     }
   },

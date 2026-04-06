@@ -11,6 +11,7 @@ import {
   generateTryOnImage,
   type EditorialStyle,
 } from "./tryOnService";
+import { exportProductsToShopify } from "./shopifyService";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -235,19 +236,24 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // Shopify product export endpoint
   app.post(
     "/api/products/export-to-shopify",
+    authenticateToken,
     async (req: Request, res: Response) => {
       try {
-        const { productIds, shopDomain } = req.body;
+        const { products, shopDomain: bodyShopDomain } = req.body;
 
-        if (
-          !productIds ||
-          !Array.isArray(productIds) ||
-          productIds.length === 0
-        ) {
-          return res.status(400).json({ error: "Product IDs are required" });
+        if (!products || !Array.isArray(products) || products.length === 0) {
+          return res.status(400).json({ error: "Products array is required" });
+        }
+
+        if (products.length > 50) {
+          return res.status(400).json({
+            error: "Maximum 50 products per export. Please export in smaller batches.",
+          });
         }
 
         const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+        const shopDomain = bodyShopDomain || process.env.SHOPIFY_SHOP_DOMAIN;
+
         if (!shopifyAccessToken || !shopDomain) {
           return res.status(400).json({
             error:
@@ -255,11 +261,34 @@ CRITICAL - This is for WHOLESALE fashion buying:
           });
         }
 
-        // Full Shopify Admin API integration requires store-specific OAuth setup.
-        return res.status(501).json({
-          success: false,
-          error:
-            "Shopify export is not yet implemented. OAuth integration with Shopify Admin API is required.",
+        console.log(
+          `Shopify export: ${products.length} products to ${shopDomain}`,
+        );
+
+        const result = await exportProductsToShopify(
+          shopDomain,
+          shopifyAccessToken,
+          products,
+        );
+
+        if (result.created === 0 && result.failed > 0) {
+          return res.status(502).json({
+            success: false,
+            count: 0,
+            error: `All ${result.failed} products failed to export.`,
+            errors: result.errors,
+          });
+        }
+
+        res.json({
+          success: true,
+          count: result.created,
+          failed: result.failed,
+          message:
+            result.failed > 0
+              ? `${result.created} exported, ${result.failed} failed.`
+              : `${result.created} product${result.created !== 1 ? "s" : ""} exported to Shopify.`,
+          errors: result.errors.length > 0 ? result.errors : undefined,
         });
       } catch (error) {
         console.error("Error exporting to Shopify:", error);
@@ -452,6 +481,446 @@ CRITICAL - This is for WHOLESALE fashion buying:
       }
     },
   );
+
+  // ── Team Management ──────────────────────────────────────────────
+
+  app.post("/api/team/invite", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { email, role } = req.body ?? {};
+      if (typeof email !== "string" || !email.trim()) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+      if (role && !["buyer", "assistant"].includes(role)) {
+        return res.status(400).json({ error: "Role must be buyer or assistant" });
+      }
+      const invitation = await storage.createTeamInvitation(
+        req.userId!,
+        email,
+        role || "buyer",
+      );
+      return res.status(201).json({ invitation });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to send invitation";
+      return res.status(400).json({ error: message });
+    }
+  });
+
+  app.get("/api/team/members", authenticateToken, async (req: Request, res: Response) => {
+    const members = await storage.listTeamMembers(req.userId!);
+    const count = await storage.getTeamMemberCount(req.userId!);
+    const user = await storage.getUserById(req.userId!);
+    return res.json({ members, count, plan: user?.subscriptionPlan ?? "free" });
+  });
+
+  app.get("/api/team/invitations", authenticateToken, async (req: Request, res: Response) => {
+    const invitations = await storage.listTeamInvitations(req.userId!);
+    return res.json({ invitations });
+  });
+
+  app.delete("/api/team/members/:id", authenticateToken, async (req: Request, res: Response) => {
+    const memberId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const removed = await storage.removeTeamMember(req.userId!, memberId);
+    if (!removed) {
+      return res.status(404).json({ error: "Team member not found" });
+    }
+    return res.json({ success: true });
+  });
+
+  app.patch("/api/team/members/:id/role", authenticateToken, async (req: Request, res: Response) => {
+    const memberId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { role } = req.body ?? {};
+    if (!role || !["buyer", "assistant"].includes(role)) {
+      return res.status(400).json({ error: "Role must be buyer or assistant" });
+    }
+    const updated = await storage.updateTeamMemberRole(req.userId!, memberId, role);
+    if (!updated) {
+      return res.status(404).json({ error: "Team member not found" });
+    }
+    return res.json({ success: true });
+  });
+
+  app.post("/api/team/invitations/:token/accept", authenticateToken, async (req: Request, res: Response) => {
+    const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+    const result = await storage.acceptTeamInvitation(token, req.userId!);
+    if (!result.success) {
+      return res.status(400).json({ error: result.reason });
+    }
+    return res.json({ success: true });
+  });
+
+  app.post("/api/team/invitations/:token/decline", authenticateToken, async (req: Request, res: Response) => {
+    const token = Array.isArray(req.params.token) ? req.params.token[0] : req.params.token;
+    const declined = await storage.declineTeamInvitation(token);
+    if (!declined) {
+      return res.status(404).json({ error: "Invitation not found or already handled" });
+    }
+    return res.json({ success: true });
+  });
+
+  app.delete("/api/team/invitations/:id", authenticateToken, async (req: Request, res: Response) => {
+    const invitationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const cancelled = await storage.cancelTeamInvitation(req.userId!, invitationId);
+    if (!cancelled) {
+      return res.status(404).json({ error: "Invitation not found or already handled" });
+    }
+    return res.json({ success: true });
+  });
+
+  // ── Products CRUD ──────────────────────────────────────────────
+
+  app.get("/api/products", authenticateToken, async (req: Request, res: Response) => {
+    const items = await storage.listProducts(req.userId!);
+    return res.json({ products: items });
+  });
+
+  app.get("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const item = await storage.getProductById(req.userId!, id);
+    if (!item) return res.status(404).json({ error: "Product not found" });
+    return res.json({ product: item });
+  });
+
+  app.post("/api/products", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const data = req.body;
+      const item = await storage.createProduct(req.userId!, {
+        name: data.name ?? "",
+        styleNumber: data.styleNumber ?? "",
+        vendorId: data.vendorId ?? "",
+        vendorName: data.vendorName ?? "",
+        category: data.category ?? "",
+        subcategory: data.subcategory,
+        wholesalePrice: String(data.wholesalePrice ?? 0),
+        retailPrice: data.retailPrice != null ? String(data.retailPrice) : null,
+        quantity: data.quantity ?? 0,
+        packs: data.packs,
+        packRatio: data.packRatio,
+        colors: data.colors ?? [],
+        selectedColors: data.selectedColors,
+        sizes: data.sizes ?? [],
+        deliveryDate: data.deliveryDate ?? "",
+        receivedDate: data.receivedDate,
+        season: data.season ?? "",
+        collection: data.collection,
+        event: data.event,
+        notes: data.notes,
+        status: data.status ?? "maybe",
+        scanStatus: data.scanStatus,
+        imageUri: data.imageUri,
+        modelImageUri: data.modelImageUri,
+      });
+      return res.status(201).json({ product: item });
+    } catch (error) {
+      console.error("Create product error:", error);
+      return res.status(500).json({ error: "Failed to create product" });
+    }
+  });
+
+  app.put("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const data = req.body;
+      const updates: Record<string, unknown> = {};
+      if (data.name !== undefined) updates.name = data.name;
+      if (data.styleNumber !== undefined) updates.styleNumber = data.styleNumber;
+      if (data.vendorId !== undefined) updates.vendorId = data.vendorId;
+      if (data.vendorName !== undefined) updates.vendorName = data.vendorName;
+      if (data.category !== undefined) updates.category = data.category;
+      if (data.subcategory !== undefined) updates.subcategory = data.subcategory;
+      if (data.wholesalePrice !== undefined) updates.wholesalePrice = String(data.wholesalePrice);
+      if (data.retailPrice !== undefined) updates.retailPrice = data.retailPrice != null ? String(data.retailPrice) : null;
+      if (data.quantity !== undefined) updates.quantity = data.quantity;
+      if (data.packs !== undefined) updates.packs = data.packs;
+      if (data.packRatio !== undefined) updates.packRatio = data.packRatio;
+      if (data.colors !== undefined) updates.colors = data.colors;
+      if (data.selectedColors !== undefined) updates.selectedColors = data.selectedColors;
+      if (data.sizes !== undefined) updates.sizes = data.sizes;
+      if (data.deliveryDate !== undefined) updates.deliveryDate = data.deliveryDate;
+      if (data.receivedDate !== undefined) updates.receivedDate = data.receivedDate;
+      if (data.season !== undefined) updates.season = data.season;
+      if (data.collection !== undefined) updates.collection = data.collection;
+      if (data.event !== undefined) updates.event = data.event;
+      if (data.notes !== undefined) updates.notes = data.notes;
+      if (data.status !== undefined) updates.status = data.status;
+      if (data.scanStatus !== undefined) updates.scanStatus = data.scanStatus;
+      if (data.imageUri !== undefined) updates.imageUri = data.imageUri;
+      if (data.modelImageUri !== undefined) updates.modelImageUri = data.modelImageUri;
+
+      const item = await storage.updateProduct(req.userId!, id, updates);
+      if (!item) return res.status(404).json({ error: "Product not found" });
+      return res.json({ product: item });
+    } catch (error) {
+      console.error("Update product error:", error);
+      return res.status(500).json({ error: "Failed to update product" });
+    }
+  });
+
+  app.delete("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await storage.deleteProduct(req.userId!, id);
+    if (!deleted) return res.status(404).json({ error: "Product not found" });
+    return res.json({ success: true });
+  });
+
+  // Bulk import (used by local-to-server data migration)
+  app.post("/api/products/bulk", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { products: items } = req.body;
+      if (!Array.isArray(items)) return res.status(400).json({ error: "products array required" });
+      const mapped = items.map((d: Record<string, unknown>) => ({
+        id: d.id as string | undefined,
+        name: (d.name as string) ?? "",
+        styleNumber: (d.styleNumber as string) ?? "",
+        vendorId: (d.vendorId as string) ?? "",
+        vendorName: (d.vendorName as string) ?? "",
+        category: (d.category as string) ?? "",
+        subcategory: d.subcategory as string | undefined,
+        wholesalePrice: String(d.wholesalePrice ?? 0),
+        retailPrice: d.retailPrice != null ? String(d.retailPrice) : null,
+        quantity: (d.quantity as number) ?? 0,
+        packs: d.packs as number | undefined,
+        packRatio: d.packRatio,
+        colors: d.colors ?? [],
+        selectedColors: d.selectedColors,
+        sizes: d.sizes ?? [],
+        deliveryDate: (d.deliveryDate as string) ?? "",
+        receivedDate: d.receivedDate as string | undefined,
+        season: (d.season as string) ?? "",
+        collection: d.collection as string | undefined,
+        event: d.event as string | undefined,
+        notes: d.notes as string | undefined,
+        status: (d.status as string) ?? "maybe",
+        scanStatus: d.scanStatus as string | undefined,
+        imageUri: d.imageUri as string | undefined,
+        modelImageUri: d.modelImageUri as string | undefined,
+      }));
+      const created = await storage.bulkCreateProducts(req.userId!, mapped as any);
+      return res.json({ count: created.length });
+    } catch (error) {
+      console.error("Bulk create products error:", error);
+      return res.status(500).json({ error: "Failed to bulk create products" });
+    }
+  });
+
+  // ── Vendors CRUD ──────────────────────────────────────────────
+
+  app.get("/api/vendors", authenticateToken, async (req: Request, res: Response) => {
+    const items = await storage.listVendors(req.userId!);
+    return res.json({ vendors: items });
+  });
+
+  app.get("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const item = await storage.getVendorById(req.userId!, id);
+    if (!item) return res.status(404).json({ error: "Vendor not found" });
+    return res.json({ vendor: item });
+  });
+
+  app.post("/api/vendors", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const data = req.body;
+      const item = await storage.createVendor(req.userId!, {
+        name: data.name,
+        contactName: data.contactName,
+        email: data.email,
+        phone: data.phone,
+        website: data.website,
+        address: data.address,
+        paymentTerms: data.paymentTerms,
+        packRatio: data.packRatio,
+        notes: data.notes,
+        isFavorite: data.isFavorite ?? false,
+      });
+      return res.status(201).json({ vendor: item });
+    } catch (error) {
+      console.error("Create vendor error:", error);
+      return res.status(500).json({ error: "Failed to create vendor" });
+    }
+  });
+
+  app.put("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const item = await storage.updateVendor(req.userId!, id, req.body);
+      if (!item) return res.status(404).json({ error: "Vendor not found" });
+      return res.json({ vendor: item });
+    } catch (error) {
+      console.error("Update vendor error:", error);
+      return res.status(500).json({ error: "Failed to update vendor" });
+    }
+  });
+
+  app.delete("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await storage.deleteVendor(req.userId!, id);
+    if (!deleted) return res.status(404).json({ error: "Vendor not found" });
+    return res.json({ success: true });
+  });
+
+  app.post("/api/vendors/bulk", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { vendors: items } = req.body;
+      if (!Array.isArray(items)) return res.status(400).json({ error: "vendors array required" });
+      const created = await storage.bulkCreateVendors(req.userId!, items);
+      return res.json({ count: created.length });
+    } catch (error) {
+      console.error("Bulk create vendors error:", error);
+      return res.status(500).json({ error: "Failed to bulk create vendors" });
+    }
+  });
+
+  // ── Budgets CRUD ──────────────────────────────────────────────
+
+  app.get("/api/budgets", authenticateToken, async (req: Request, res: Response) => {
+    const items = await storage.listBudgets(req.userId!);
+    return res.json({ budgets: items });
+  });
+
+  app.get("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const item = await storage.getBudgetById(req.userId!, id);
+    if (!item) return res.status(404).json({ error: "Budget not found" });
+    return res.json({ budget: item });
+  });
+
+  app.post("/api/budgets", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const data = req.body;
+      const item = await storage.createBudget(req.userId!, {
+        season: data.season,
+        category: data.category,
+        vendorId: data.vendorId,
+        amount: String(data.amount ?? 0),
+        spent: String(data.spent ?? 0),
+      });
+      return res.status(201).json({ budget: item });
+    } catch (error) {
+      console.error("Create budget error:", error);
+      return res.status(500).json({ error: "Failed to create budget" });
+    }
+  });
+
+  app.put("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const data = req.body;
+      const updates: Record<string, unknown> = {};
+      if (data.season !== undefined) updates.season = data.season;
+      if (data.category !== undefined) updates.category = data.category;
+      if (data.vendorId !== undefined) updates.vendorId = data.vendorId;
+      if (data.amount !== undefined) updates.amount = String(data.amount);
+      if (data.spent !== undefined) updates.spent = String(data.spent);
+
+      const item = await storage.updateBudget(req.userId!, id, updates);
+      if (!item) return res.status(404).json({ error: "Budget not found" });
+      return res.json({ budget: item });
+    } catch (error) {
+      console.error("Update budget error:", error);
+      return res.status(500).json({ error: "Failed to update budget" });
+    }
+  });
+
+  app.delete("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const deleted = await storage.deleteBudget(req.userId!, id);
+    if (!deleted) return res.status(404).json({ error: "Budget not found" });
+    return res.json({ success: true });
+  });
+
+  app.post("/api/budgets/update-spent", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      await storage.updateBudgetSpent(req.userId!);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Update budget spent error:", error);
+      return res.status(500).json({ error: "Failed to update budget spent" });
+    }
+  });
+
+  app.post("/api/budgets/bulk", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { budgets: items } = req.body;
+      if (!Array.isArray(items)) return res.status(400).json({ error: "budgets array required" });
+      const mapped = items.map((d: Record<string, unknown>) => ({
+        id: d.id as string | undefined,
+        season: (d.season as string) ?? "",
+        category: d.category as string | undefined,
+        vendorId: d.vendorId as string | undefined,
+        amount: String(d.amount ?? 0),
+        spent: String(d.spent ?? 0),
+      }));
+      const created = await storage.bulkCreateBudgets(req.userId!, mapped);
+      return res.json({ count: created.length });
+    } catch (error) {
+      console.error("Bulk create budgets error:", error);
+      return res.status(500).json({ error: "Failed to bulk create budgets" });
+    }
+  });
+
+  // ── Events ──────────────────────────────────────────────
+
+  app.get("/api/events", authenticateToken, async (req: Request, res: Response) => {
+    const items = await storage.listEvents(req.userId!);
+    return res.json({ events: items });
+  });
+
+  app.post("/api/events", authenticateToken, async (req: Request, res: Response) => {
+    const { name } = req.body ?? {};
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "Event name is required" });
+    }
+    const items = await storage.addEvent(req.userId!, name);
+    return res.json({ events: items });
+  });
+
+  app.delete("/api/events", authenticateToken, async (req: Request, res: Response) => {
+    const { name } = req.body ?? {};
+    if (typeof name !== "string" || !name.trim()) {
+      return res.status(400).json({ error: "Event name is required" });
+    }
+    const items = await storage.deleteEvent(req.userId!, name);
+    return res.json({ events: items });
+  });
+
+  app.post("/api/events/bulk", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { events: names } = req.body;
+      if (!Array.isArray(names)) return res.status(400).json({ error: "events array required" });
+      await storage.bulkCreateEvents(req.userId!, names);
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Bulk create events error:", error);
+      return res.status(500).json({ error: "Failed to bulk create events" });
+    }
+  });
+
+  // ── User Settings ──────────────────────────────────────────────
+
+  app.get("/api/settings", authenticateToken, async (req: Request, res: Response) => {
+    const settings = await storage.getUserSettings(req.userId!);
+    return res.json({ settings });
+  });
+
+  app.put("/api/settings", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { markupMultiplier, roundingMode } = req.body ?? {};
+      const settings = await storage.upsertUserSettings(req.userId!, {
+        markupMultiplier: typeof markupMultiplier === "number" ? markupMultiplier : 2.5,
+        roundingMode: ["none", "up", "even"].includes(roundingMode) ? roundingMode : "none",
+      });
+      return res.json({ settings });
+    } catch (error) {
+      console.error("Update settings error:", error);
+      return res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // ── Dashboard Stats ──────────────────────────────────────────────
+
+  app.get("/api/dashboard/stats", authenticateToken, async (req: Request, res: Response) => {
+    const stats = await storage.getDashboardStats(req.userId!);
+    return res.json({ stats });
+  });
 
   // RevenueCat webhook — receives subscription lifecycle events
   // Set this URL in RevenueCat Dashboard > Project Settings > Integrations > Webhooks

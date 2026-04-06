@@ -7,9 +7,12 @@ import {
 } from "firebase/auth";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/lib/firebase";
 import { getApiUrl } from "@/lib/query-client";
 import type { AuthUser } from "@/types";
+
+const CACHED_PROFILE_KEY = "@digitalhaute/cached_profile";
 
 async function authFetch(
   route: string,
@@ -196,13 +199,30 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
     const res = await authFetch("/api/auth/me");
     if (res.ok) {
       const body = await res.json();
-      if (body.user) return body.user;
+      if (body.user) {
+        AsyncStorage.setItem(
+          CACHED_PROFILE_KEY,
+          JSON.stringify(body.user),
+        ).catch(() => {});
+        return body.user;
+      }
     }
   } catch {
-    // Server unreachable — fall through to Firebase fallback
+    // Server unreachable — try local cache first, then Firebase fallback
   }
 
-  // Fallback: return basic user from Firebase auth data
+  try {
+    const cached = await AsyncStorage.getItem(CACHED_PROFILE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached) as AuthUser;
+      if (parsed.id === auth.currentUser.uid) {
+        return parsed;
+      }
+    }
+  } catch {
+    // Cache read failed
+  }
+
   const firebaseUser = auth.currentUser;
   return {
     id: firebaseUser.uid,

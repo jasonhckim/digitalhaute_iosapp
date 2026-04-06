@@ -2,7 +2,8 @@
   "expo": {
     "name": "Digital Haute",
     "slug": "digital-haute",
-    "version": "1.0.1",
+    "owner": "jasonhckim",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "digitalhaute",
@@ -63,11 +64,11 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/f03b5ad1-14ee-4ef0-a372-9c472e26d3aa"
+      "url": "https://u.expo.dev/3e0b9dd8-9ee0-45c9-b735-3dda6a11dc5c"
     },
     "extra": {
       "eas": {
-        "projectId": "f03b5ad1-14ee-4ef0-a372-9c472e26d3aa"
+        "projectId": "3e0b9dd8-9ee0-45c9-b735-3dda6a11dc5c"
       }
     }
   }

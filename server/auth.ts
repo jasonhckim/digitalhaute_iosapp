@@ -6,15 +6,30 @@ import * as path from "path";
 import { profileSchema } from "@shared/schema";
 import { storage } from "./storage";
 
-// Initialize Firebase Admin
-const serviceAccountPath = path.resolve(
-  process.cwd(),
-  "firebase-service-account.json",
-);
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+function loadFirebaseCredential(): admin.credential.Credential {
+  const envJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (envJson) {
+    try {
+      const parsed = JSON.parse(envJson);
+      return admin.credential.cert(parsed);
+    } catch (e) {
+      console.error("Failed to parse FIREBASE_SERVICE_ACCOUNT env var:", e);
+    }
+  }
+
+  const filePath = path.resolve(process.cwd(), "firebase-service-account.json");
+  if (fs.existsSync(filePath)) {
+    const serviceAccount = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    return admin.credential.cert(serviceAccount);
+  }
+
+  throw new Error(
+    "Firebase credentials not found. Set FIREBASE_SERVICE_ACCOUNT env var or provide firebase-service-account.json",
+  );
+}
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: loadFirebaseCredential(),
 });
 
 declare global {
@@ -204,7 +219,7 @@ export function registerAuthRoutes(app: Express) {
     },
   );
 
-  // Delete account (removes from both SQLite and Firebase)
+  // Delete account
   app.delete(
     "/api/auth/account",
     authenticateToken,

@@ -229,6 +229,11 @@ export default function AccountScreen() {
               onPress={() => navigation.navigate("Settings")}
             />
             <MenuItem
+              icon="gift"
+              label="Collaboration"
+              onPress={() => navigation.navigate("Collaboration")}
+            />
+            <MenuItem
               icon="users"
               label="Team Members"
               onPress={handleTeamMembersPress}

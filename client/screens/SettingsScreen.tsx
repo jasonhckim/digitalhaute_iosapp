@@ -19,7 +19,8 @@ import { ThemedView } from "@/components/ThemedView";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useTheme } from "@/hooks/useTheme";
 import { SettingsStorage } from "@/lib/storage";
-import { AppSettings, RoundingMode } from "@/types";
+import { checkShopifyStatus } from "@/lib/shopify";
+import { AppSettings, RoundingMode, ShopifyStatus } from "@/types";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
 
 export default function SettingsScreen() {
@@ -31,8 +32,15 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [markupText, setMarkupText] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [shopifyStatus, setShopifyStatus] = useState<ShopifyStatus | null>(null);
+  const [shopifyLoading, setShopifyLoading] = useState(true);
+
   useEffect(() => {
     loadSettings();
+    checkShopifyStatus()
+      .then(setShopifyStatus)
+      .catch(() => setShopifyStatus(null))
+      .finally(() => setShopifyLoading(false));
   }, []);
 
   const loadSettings = async () => {
@@ -269,45 +277,105 @@ export default function SettingsScreen() {
             </ThemedText>
           </View>
 
-          <View>
-            <ThemedText
-              style={[
-                styles.shopifyDescription,
-                { color: theme.textSecondary },
-              ]}
-            >
-              Connect your Shopify store to export products directly from the
-              app. We're working on this feature and it will be available soon.
-            </ThemedText>
-            <View
-              style={[
-                styles.shopifyComingSoonButton,
-                { backgroundColor: theme.backgroundSecondary },
-              ]}
-            >
-              <Feather name="clock" size={18} color={theme.textTertiary} />
+          {shopifyLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={BrandColors.gold}
+              style={{ marginVertical: Spacing.lg }}
+            />
+          ) : shopifyStatus?.connected ? (
+            <View>
+              <View style={styles.shopifyStatusRow}>
+                <View
+                  style={[
+                    styles.shopifyStatusBadge,
+                    { backgroundColor: `${BrandColors.success}15` },
+                  ]}
+                >
+                  <Feather
+                    name="check-circle"
+                    size={16}
+                    color={BrandColors.success}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.shopifyStatusText,
+                      { color: BrandColors.success },
+                    ]}
+                  >
+                    Connected
+                  </ThemedText>
+                </View>
+              </View>
               <ThemedText
                 style={[
-                  styles.shopifyComingSoonText,
-                  { color: theme.textTertiary },
+                  styles.shopifyDescription,
+                  { color: theme.textSecondary },
                 ]}
               >
-                Coming Soon
+                Store: {shopifyStatus.shopDomain}
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.shopifyDescription,
+                  { color: theme.textTertiary, fontSize: 13 },
+                ]}
+              >
+                Go to Products tab to export items to your Shopify store.
               </ThemedText>
             </View>
-            <Pressable
-              onPress={() => {
-                Haptics.selectionAsync();
-                Linking.openURL("mailto:support@digitalhaute.com?subject=Shopify%20Integration%20Interest");
-              }}
-            >
+          ) : (
+            <View>
+              <View style={styles.shopifyStatusRow}>
+                <View
+                  style={[
+                    styles.shopifyStatusBadge,
+                    { backgroundColor: `${BrandColors.error}15` },
+                  ]}
+                >
+                  <Feather
+                    name="x-circle"
+                    size={16}
+                    color={BrandColors.error}
+                  />
+                  <ThemedText
+                    style={[
+                      styles.shopifyStatusText,
+                      { color: BrandColors.error },
+                    ]}
+                  >
+                    Not Connected
+                  </ThemedText>
+                </View>
+              </View>
               <ThemedText
-                style={[styles.shopifyNotifyLink, { color: BrandColors.gold }]}
+                style={[
+                  styles.shopifyDescription,
+                  { color: theme.textSecondary },
+                ]}
               >
-                Notify me when it's ready
+                To connect your Shopify store, configure your Shopify access
+                token and store domain in your server environment settings.
               </ThemedText>
-            </Pressable>
-          </View>
+              <Pressable
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  Linking.openURL(
+                    "mailto:support@digitalhaute.com?subject=Shopify%20Setup%20Help",
+                  );
+                }}
+              >
+                <ThemedText
+                  style={[
+                    styles.shopifyNotifyLink,
+                    { color: BrandColors.gold },
+                  ]}
+                >
+                  Contact support for setup help
+                </ThemedText>
+              </Pressable>
+            </View>
+          )}
         </View>
 
         <Pressable
@@ -471,18 +539,22 @@ const styles = StyleSheet.create({
   shopifyDescription: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.sm,
   },
-  shopifyComingSoonButton: {
+  shopifyStatusRow: {
+    flexDirection: "row",
+    marginBottom: Spacing.md,
+  },
+  shopifyStatusBadge: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    height: 48,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: BorderRadius.full,
+    gap: Spacing.xs,
   },
-  shopifyComingSoonText: {
-    fontSize: 15,
+  shopifyStatusText: {
+    fontSize: 14,
     fontWeight: "600",
   },
   shopifyNotifyLink: {

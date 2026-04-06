@@ -18,6 +18,7 @@ import {
   signInWithApple as signInWithAppleApi,
 } from "@/lib/auth";
 import { clearAllData } from "@/lib/seedData";
+import { migrateLocalDataToServer } from "@/lib/storage";
 import {
   identifyUser as rcIdentify,
   logOutPurchases,
@@ -87,6 +88,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
               if (profile) {
                 setUser(profile);
+                migrateLocalDataToServer().catch((err) =>
+                  console.warn("Data migration error:", err),
+                );
               }
             } catch (error) {
               console.error("Failed to fetch user profile:", error);

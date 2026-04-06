@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AccountScreen from "@/screens/AccountScreen";
 import EditProfileScreen from "@/screens/EditProfileScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
+import CollaborationScreen from "@/screens/CollaborationScreen";
 import NotificationsScreen from "@/screens/NotificationsScreen";
 import DataPrivacyScreen from "@/screens/DataPrivacyScreen";
 import PrivacyPolicyScreen from "@/screens/PrivacyPolicyScreen";
@@ -17,6 +18,7 @@ export type AccountStackParamList = {
   Account: undefined;
   EditProfile: undefined;
   Settings: undefined;
+  Collaboration: undefined;
   Notifications: undefined;
   DataPrivacy: undefined;
   PrivacyPolicy: undefined;
@@ -53,6 +55,15 @@ export default function AccountStackNavigator() {
         component={SettingsScreen}
         options={{
           headerTitle: "Settings",
+          headerTransparent: false,
+          headerStyle: { backgroundColor: BrandColors.cream },
+        }}
+      />
+      <Stack.Screen
+        name="Collaboration"
+        component={CollaborationScreen}
+        options={{
+          headerTitle: "Collaboration",
           headerTransparent: false,
           headerStyle: { backgroundColor: BrandColors.cream },
         }}

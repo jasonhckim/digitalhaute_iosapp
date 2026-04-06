@@ -451,15 +451,17 @@ export default function ProductsScreen() {
         return;
       }
 
+      const selectedProducts = products.filter((p) => selectedIds.has(p.id));
       const result = await exportToShopify(
-        Array.from(selectedIds),
+        selectedProducts,
         status.shopDomain,
       );
 
-      Alert.alert(
-        "Export Successful",
-        `${result.count} product${result.count !== 1 ? "s" : ""} exported to Shopify.`,
-      );
+      const msg = result.failed
+        ? `${result.count} exported, ${result.failed} failed.`
+        : `${result.count} product${result.count !== 1 ? "s" : ""} exported to Shopify.`;
+
+      Alert.alert("Export Complete", msg);
       exitSelectionMode();
     } catch (error) {
       console.error("Shopify export error:", error);

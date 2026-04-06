@@ -1,15 +1,10 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "@shared/schema";
-import * as path from "path";
-import * as fs from "fs";
 
-const dataDir = path.resolve(process.cwd(), "data");
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
 
-const sqlite = new Database(path.join(dataDir, "digitalhaute.db"));
-sqlite.pragma("journal_mode = WAL");
-
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(pool, { schema });

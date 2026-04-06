@@ -1,37 +1,17 @@
+import { apiRequest } from "./query-client";
+
 export interface LabelScanResult {
   styleName?: string;
   styleNumber?: string;
   wholesalePrice?: number;
   retailPrice?: number;
   colors?: string[];
+  sizes?: string[];
   category?: string;
   brandName?: string;
   season?: string;
   notes?: string;
 }
-
-const SCAN_PROMPT = `You are an expert at reading wholesale fashion product labels and hang tags from trade shows and showrooms. Extract information from this label image and return a JSON object with the following fields (use null for fields you cannot determine):
-{
-  "styleName": "Product name or style name",
-  "styleNumber": "Style number, SKU, or product code",
-  "wholesalePrice": number (wholesale/cost price without currency symbol),
-  "retailPrice": number (suggested retail price without currency symbol),
-  "colors": ["array of ALL available color options listed on the label"],
-  "category": "One of: Tops, Bottoms, Dresses, Outerwear, 2pcs Set, 3pcs Set, Rompers & Jumpsuits, Accessories, Shoes, Bags, Jewelry",
-  "brandName": "Brand or vendor name",
-  "season": "Season like Fall 2026, Resort 2027, etc.",
-  "notes": "Any additional info like fabric content, care instructions, etc."
-}
-
-CRITICAL - This is for WHOLESALE fashion buying:
-- If there's only ONE price on the label, it's the WHOLESALE PRICE (put in wholesalePrice, leave retailPrice as null)
-- Only use retailPrice if you see "MSRP", "Retail", "SRP", or similar indicators
-- The color shown at the top (like "L.BLUE") is the current item's color - the list below shows ALL available colors
-- Extract the list of available colors, not just the current item's color
-- Interpret color abbreviations: L.BLUE = Light Blue, L.PINK = Light Pink, etc.
-- Style numbers typically start with letters followed by numbers (e.g., HF26C297)
-- Look for category indicators like "Top", "Dress", "Pants" on the label
-- Return valid JSON only, no markdown or explanation`;
 
 const CATEGORY_KEYWORDS: Record<string, string> = {
   top: "Tops",
@@ -189,7 +169,6 @@ export function parseLabelTextFromOCR(
   }
 
   // Also try to extract color lists separated by / , or newlines
-  // e.g. "BLACK / RED / IVORY" or "Black, Red, Ivory"
   const colorListMatch = rawText.match(/(?:colou?rs?|available)[:\s]*([\s\S]{3,120})/i);
   if (colorListMatch) {
     const colorList = colorListMatch[1].split(/[,/\n]+/).map((s) => s.trim()).filter((s) => s.length > 1 && s.length < 30);
@@ -261,71 +240,31 @@ export function parseLabelTextFromOCR(
   return hasAny ? result : null;
 }
 
+/**
+ * Scan a label image: tries the server AI endpoint first, falls back to on-device OCR.
+ */
 export async function scanLabelImage(
   base64Data: string,
 ): Promise<LabelScanResult | null> {
-  const forceOcr = process.env.EXPO_PUBLIC_FORCE_OCR_SCAN === "true";
-  const geminiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+  // Try server endpoint first (uses AI vision model securely)
+  try {
+    const res = await apiRequest("POST", "/api/scan-label", {
+      imageBase64: base64Data,
+    });
 
-  // Try Gemini first unless forcing OCR
-  if (!forceOcr && geminiKey) {
-    try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    inlineData: {
-                      mimeType: "image/jpeg",
-                      data: base64Data,
-                    },
-                  },
-                  { text: SCAN_PROMPT },
-                ],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.1,
-              maxOutputTokens: 1024,
-            },
-          }),
-        },
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (content) {
-          const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
-          return JSON.parse(cleaned) as LabelScanResult;
-        }
-      } else {
-        console.warn("Gemini API error, falling back to OCR:", response.status);
-      }
-    } catch (error) {
-      console.warn("Gemini scan failed, falling back to OCR:", error);
+    const data = await res.json();
+    if (data.success && data.data) {
+      return data.data as LabelScanResult;
     }
+  } catch (error) {
+    console.warn("Server label scan failed, falling back to OCR:", error);
   }
 
-  // OCR fallback (or forced OCR for testing)
+  // OCR fallback (on-device, no API key needed)
   const rawText = await extractTextFromImage(base64Data);
   if (!rawText) {
-    if (forceOcr) {
-      console.warn("OCR extracted no text from image");
-    }
     return null;
   }
 
-  const ocrResult = parseLabelTextFromOCR(rawText);
-  if (!ocrResult && forceOcr) {
-    console.warn("OCR could not parse any label fields from text:", rawText.slice(0, 200));
-  }
-  return ocrResult;
+  return parseLabelTextFromOCR(rawText);
 }

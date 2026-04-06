@@ -43,8 +43,11 @@ app-example
 /ios
 /android
 
-# SQLite database
+# Database
 data/
+
+# Server build output
+server_dist/
 
 # Firebase service account key
 firebase-service-account.json
