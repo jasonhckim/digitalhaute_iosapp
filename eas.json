@@ -41,7 +41,7 @@
       "autoIncrement": true,
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "digitalhaute-production.up.railway.app",
+        "EXPO_PUBLIC_DOMAIN": "digitalhauteiosapp-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
@@ -54,7 +54,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "digitalhaute-production.up.railway.app",
+        "EXPO_PUBLIC_DOMAIN": "digitalhauteiosapp-production.up.railway.app",
         "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyC51Ud6mXwudHkG46ePfEndHdaS0HYSsm4",
         "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "digitalhaute-68c26.firebaseapp.com",
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
