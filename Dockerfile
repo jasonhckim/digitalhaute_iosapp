@@ -23,4 +23,4 @@ ENV NODE_ENV=production
 ENV PORT=5000
 EXPOSE 5000
 
-CMD ["node", "server_dist/index.js"]
+CMD ["node", "server_dist/index.mjs"]
