@@ -18,7 +18,6 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/server_dist ./server_dist
 COPY server/templates/ server/templates/
 COPY assets/ assets/
-COPY firebase-service-account.json ./
 
 ENV NODE_ENV=production
 ENV PORT=5000
