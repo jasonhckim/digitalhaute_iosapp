@@ -330,6 +330,10 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.get("/api/affiliates/me", authenticateToken, async (req: Request, res: Response) => {
     const uid = req.userId!;
+    const user = await storage.getUserById(uid);
+    if (!user) {
+      return res.status(404).json({ error: "User profile not found. Please complete registration first." });
+    }
     const [profile, stats] = await Promise.all([
       storage.getOrCreateAffiliateProfile(uid),
       storage.getAffiliateStats(uid),

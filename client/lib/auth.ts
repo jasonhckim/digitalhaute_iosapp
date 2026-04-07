@@ -262,6 +262,19 @@ export async function updateProfile(data: {
   return body.user;
 }
 
+export async function syncSubscriptionPlan(
+  plan: "free" | "starter" | "growth" | "vip",
+): Promise<void> {
+  try {
+    await authFetch("/api/auth/profile", {
+      method: "PATCH",
+      body: JSON.stringify({ subscriptionPlan: plan }),
+    });
+  } catch {
+    // Best-effort sync; don't block the UI if the server is unreachable
+  }
+}
+
 export async function deleteAccount(): Promise<void> {
   const res = await authFetch("/api/auth/account", { method: "DELETE" });
 

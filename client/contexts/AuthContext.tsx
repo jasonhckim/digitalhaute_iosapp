@@ -16,6 +16,7 @@ import {
   fetchCurrentUser,
   updateProfile as updateProfileApi,
   signInWithApple as signInWithAppleApi,
+  syncSubscriptionPlan,
 } from "@/lib/auth";
 import { clearAllData } from "@/lib/seedData";
 import { migrateLocalDataToServer } from "@/lib/storage";
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const rcPlan = getPlanFromCustomerInfo(customerInfo);
                 if (profile && rcPlan !== (profile.subscriptionPlan ?? "free")) {
                   profile.subscriptionPlan = rcPlan;
+                  syncSubscriptionPlan(rcPlan);
                 }
               } catch (rcErr) {
                 console.warn("RevenueCat identify failed:", rcErr);
@@ -124,11 +126,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const remove = addCustomerInfoListener((customerInfo) => {
       const rcPlan = getPlanFromCustomerInfo(customerInfo);
-      setUser((prev) =>
-        prev && prev.subscriptionPlan !== rcPlan
-          ? { ...prev, subscriptionPlan: rcPlan }
-          : prev,
-      );
+      setUser((prev) => {
+        if (prev && prev.subscriptionPlan !== rcPlan) {
+          syncSubscriptionPlan(rcPlan);
+          return { ...prev, subscriptionPlan: rcPlan };
+        }
+        return prev;
+      });
     });
     return remove;
   }, []);

@@ -177,7 +177,7 @@ export function registerAuthRoutes(app: Express) {
     async (req: Request, res: Response) => {
       try {
         const uid = req.userId!;
-        const { businessName, name, role, avatarUrl } = req.body;
+        const { businessName, name, role, avatarUrl, subscriptionPlan } = req.body;
 
         const updateData: Record<string, string> = {};
         if (typeof businessName === "string" && businessName.trim())
@@ -187,6 +187,9 @@ export function registerAuthRoutes(app: Express) {
         if (typeof role === "string" && role.trim())
           updateData.role = role.trim();
         if (typeof avatarUrl === "string") updateData.avatarUrl = avatarUrl;
+        const validPlans = ["free", "starter", "growth", "vip"];
+        if (typeof subscriptionPlan === "string" && validPlans.includes(subscriptionPlan))
+          updateData.subscriptionPlan = subscriptionPlan;
 
         if (Object.keys(updateData).length === 0) {
           return res.status(400).json({ error: "No fields to update" });
