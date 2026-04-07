@@ -8,7 +8,9 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { isGoogleSignInConfigured } from "@/lib/auth";
 import { Spacing, BrandColors, FontFamilies } from "@/constants/theme";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -18,7 +20,8 @@ export default function WelcomeScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { enterGuestMode, loginWithApple } = useAuth();
+  const { enterGuestMode, loginWithApple, loginWithGoogle } = useAuth();
+  const showGoogleSignIn = isGoogleSignInConfigured();
 
   const handleGuest = () => {
     enterGuestMode();
@@ -32,6 +35,19 @@ export default function WelcomeScreen() {
       if (err.code === "ERR_REQUEST_CANCELED") return;
       Alert.alert(
         "Apple Sign In Failed",
+        err.message || "Please try again.",
+      );
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      if (err.code === "ERR_REQUEST_CANCELED") return;
+      Alert.alert(
+        "Google Sign In Failed",
         err.message || "Please try again.",
       );
     }
@@ -75,6 +91,13 @@ export default function WelcomeScreen() {
           style={styles.appleButton}
           onPress={handleAppleSignIn}
         />
+
+        {showGoogleSignIn ? (
+          <GoogleSignInButton
+            variant="signin"
+            onPress={handleGoogleSignIn}
+          />
+        ) : null}
 
         <Pressable
           style={styles.loginLink}

@@ -16,6 +16,7 @@ import {
   fetchCurrentUser,
   updateProfile as updateProfileApi,
   signInWithApple as signInWithAppleApi,
+  signInWithGoogle as signInWithGoogleApi,
   syncSubscriptionPlan,
 } from "@/lib/auth";
 import { clearAllData } from "@/lib/seedData";
@@ -34,6 +35,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginWithApple: () => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   register: (data: {
     businessName: string;
     name: string;
@@ -152,6 +154,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsGuest(false);
   }, []);
 
+  const loginWithGoogle = useCallback(async () => {
+    const profile = await signInWithGoogleApi();
+    setUser(profile);
+    setIsGuest(false);
+  }, []);
+
   const register = useCallback(
     async (data: {
       businessName: string;
@@ -209,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated,
         login,
         loginWithApple,
+        loginWithGoogle,
         register,
         updateProfile,
         refreshUser,
