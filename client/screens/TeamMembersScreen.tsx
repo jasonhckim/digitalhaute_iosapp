@@ -86,15 +86,21 @@ export default function TeamMembersScreen() {
   const {
     data: membersData,
     isLoading: isLoadingMembers,
+    error: membersError,
   } = useQuery<MembersResponse>({
     queryKey: ["api", "team", "members"],
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const {
     data: invitationsData,
     isLoading: isLoadingInvitations,
+    error: invitationsError,
   } = useQuery<InvitationsResponse>({
     queryKey: ["api", "team", "invitations"],
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const invalidateTeam = useCallback(() => {
@@ -251,11 +257,54 @@ export default function TeamMembersScreen() {
     invitationsData?.invitations.filter((i) => i.status === "pending") ?? [];
   const isLoading = isLoadingMembers || isLoadingInvitations;
   const canInvite = currentCount + pendingInvitations.length < maxUsers;
-
   if (isLoading) {
     return (
       <ThemedView style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" color={BrandColors.gold} />
+      </ThemedView>
+    );
+  }
+
+  if (membersError && !membersData) {
+    const errMsg =
+      membersError instanceof Error
+        ? membersError.message
+        : String(membersError);
+    const isAuth = errMsg.includes("401");
+    const isDbHint =
+      errMsg.includes("does not exist") || errMsg.includes("relation");
+    return (
+      <ThemedView style={[styles.container, styles.centered]}>
+        <Feather
+          name={isAuth ? "lock" : "alert-circle"}
+          size={40}
+          color={theme.textTertiary}
+        />
+        <ThemedText
+          style={{
+            color: theme.textSecondary,
+            marginTop: Spacing.md,
+            textAlign: "center",
+            paddingHorizontal: Spacing.xl,
+          }}
+        >
+          {isAuth
+            ? "Your session has expired. Log out and log back in, then open Team Members again."
+            : isDbHint
+              ? "The server database is still updating. Wait a minute after deploy, force-quit the app, and try again."
+              : "Unable to load team data. Check your connection or try again later."}
+        </ThemedText>
+        <ThemedText
+          style={{
+            color: theme.textTertiary,
+            marginTop: Spacing.sm,
+            fontSize: 12,
+            textAlign: "center",
+            paddingHorizontal: Spacing.lg,
+          }}
+        >
+          {errMsg.length > 180 ? `${errMsg.slice(0, 180)}…` : errMsg}
+        </ThemedText>
       </ThemedView>
     );
   }

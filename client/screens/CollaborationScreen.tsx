@@ -194,6 +194,8 @@ export default function CollaborationScreen() {
         ? affiliateError.message
         : String(affiliateError);
     const isAuthError = errMsg.includes("401");
+    const isDbHint =
+      errMsg.includes("does not exist") || errMsg.includes("relation");
     return (
       <ThemedView style={[styles.container, styles.centered]}>
         <Feather
@@ -206,7 +208,9 @@ export default function CollaborationScreen() {
         >
           {isAuthError
             ? "Your session has expired. Please log out and log back in to access your referral code."
-            : "Unable to load referral data. Please check your connection and try again."}
+            : isDbHint
+              ? "The server database is still updating. After your host deploys, wait a minute, force-quit the app, and open Collaboration again."
+              : "Unable to load referral data. Please check your connection and try again."}
         </ThemedText>
       </ThemedView>
     );

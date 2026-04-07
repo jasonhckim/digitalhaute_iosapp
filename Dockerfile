@@ -18,9 +18,12 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/server_dist ./server_dist
 COPY server/templates/ server/templates/
 COPY assets/ assets/
+COPY shared/ shared/
+COPY drizzle.config.ts ./
 
 ENV NODE_ENV=production
 ENV PORT=5000
 EXPOSE 5000
 
-CMD ["node", "server_dist/index.mjs"]
+# Sync Postgres schema (affiliate_profiles, team_*, etc.) — was never run on Railway before
+CMD ["sh", "-c", "npx drizzle-kit push --force && exec node server_dist/index.mjs"]
