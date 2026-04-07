@@ -6,6 +6,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import Constants from "expo-constants";
+import * as Updates from "expo-updates";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -104,6 +106,16 @@ export default function AccountScreen() {
   const [showTeamUpgradeModal, setShowTeamUpgradeModal] = useState(false);
 
   const canUseTeamMembers = hasFeature(user?.subscriptionPlan, "teamMembers");
+
+  const appVersion =
+    Constants.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "—";
+  const nativeBuild = Constants.nativeBuildVersion ?? "—";
+  const otaHint =
+    Updates.isEnabled && Updates.updateId
+      ? ` · OTA ${Updates.updateId.slice(0, 8)}`
+      : Updates.isEnabled && Updates.isEmbeddedLaunch
+        ? " · embedded JS"
+        : "";
 
   const handleTeamMembersPress = () => {
     if (canUseTeamMembers) {
@@ -267,7 +279,7 @@ export default function AccountScreen() {
       )}
 
       <ThemedText style={[styles.version, { color: theme.textTertiary }]}>
-        Digital Haute v1.0.0
+        Digital Haute v{appVersion} ({nativeBuild}){otaHint}
       </ThemedText>
 
       <UpgradePromptModal

@@ -105,12 +105,16 @@ export default function CollaborationScreen() {
     error: affiliateError,
   } = useQuery<AffiliateMeResponse>({
     queryKey: ["api", "affiliates", "me"],
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const { data: referralsData, isLoading: isLoadingReferrals } = useQuery<{
     referrals: ReferralEntry[];
   }>({
     queryKey: ["api", "affiliates", "me", "referrals"],
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const payoutMutation = useMutation({
@@ -185,7 +189,11 @@ export default function CollaborationScreen() {
   }
 
   if (affiliateError && !affiliateData) {
-    const isAuthError = affiliateError.message?.includes("401");
+    const errMsg =
+      affiliateError instanceof Error
+        ? affiliateError.message
+        : String(affiliateError);
+    const isAuthError = errMsg.includes("401");
     return (
       <ThemedView style={[styles.container, styles.centered]}>
         <Feather
