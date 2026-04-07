@@ -82,7 +82,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               try {
                 const customerInfo = await rcIdentify(firebaseUser.uid);
                 const rcPlan = getPlanFromCustomerInfo(customerInfo);
-                if (profile && rcPlan !== (profile.subscriptionPlan ?? "free")) {
+                if (
+                  profile &&
+                  rcPlan !== (profile.subscriptionPlan ?? "free")
+                ) {
                   profile.subscriptionPlan = rcPlan;
                   syncSubscriptionPlan(rcPlan);
                 }

@@ -33,10 +33,7 @@ export default function WelcomeScreen() {
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err.code === "ERR_REQUEST_CANCELED") return;
-      Alert.alert(
-        "Apple Sign In Failed",
-        err.message || "Please try again.",
-      );
+      Alert.alert("Apple Sign In Failed", err.message || "Please try again.");
     }
   };
 
@@ -46,10 +43,7 @@ export default function WelcomeScreen() {
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err.code === "ERR_REQUEST_CANCELED") return;
-      Alert.alert(
-        "Google Sign In Failed",
-        err.message || "Please try again.",
-      );
+      Alert.alert("Google Sign In Failed", err.message || "Please try again.");
     }
   };
 
@@ -93,10 +87,7 @@ export default function WelcomeScreen() {
         />
 
         {showGoogleSignIn ? (
-          <GoogleSignInButton
-            variant="signin"
-            onPress={handleGoogleSignIn}
-          />
+          <GoogleSignInButton variant="signin" onPress={handleGoogleSignIn} />
         ) : null}
 
         <Pressable

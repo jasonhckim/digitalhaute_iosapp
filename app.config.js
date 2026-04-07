@@ -9,7 +9,8 @@ module.exports = ({ config }) => {
     "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID";
 
   if (
-    iosUrlScheme === "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID"
+    iosUrlScheme ===
+    "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID"
   ) {
     console.warn(
       "[app.config.js] Set EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME to your iOS reversed client ID for Google Sign-In (Firebase Console → Project settings → Your apps → iOS → GoogleService-Info.plist → REVERSED_CLIENT_ID).",
@@ -20,10 +21,7 @@ module.exports = ({ config }) => {
     ...config,
     plugins: [
       ...(config.plugins ?? []),
-      [
-        "@react-native-google-signin/google-signin",
-        { iosUrlScheme },
-      ],
+      ["@react-native-google-signin/google-signin", { iosUrlScheme }],
     ],
   };
 };

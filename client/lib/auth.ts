@@ -104,17 +104,27 @@ export async function registerUser(data: {
     const err = error as { code?: string; message?: string };
     switch (err.code) {
       case "auth/email-already-in-use":
-        throw new Error("An account with this email already exists. Please log in instead.");
+        throw new Error(
+          "An account with this email already exists. Please log in instead.",
+        );
       case "auth/invalid-email":
         throw new Error("Please enter a valid email address.");
       case "auth/weak-password":
-        throw new Error("Password is too weak. Please use at least 6 characters.");
+        throw new Error(
+          "Password is too weak. Please use at least 6 characters.",
+        );
       case "auth/operation-not-allowed":
-        throw new Error("Email/password registration is not enabled. Please contact support.");
+        throw new Error(
+          "Email/password registration is not enabled. Please contact support.",
+        );
       case "auth/network-request-failed":
-        throw new Error("Network error. Please check your internet connection and try again.");
+        throw new Error(
+          "Network error. Please check your internet connection and try again.",
+        );
       default:
-        throw new Error(err.message || "Registration failed. Please try again.");
+        throw new Error(
+          err.message || "Registration failed. Please try again.",
+        );
     }
   }
 
