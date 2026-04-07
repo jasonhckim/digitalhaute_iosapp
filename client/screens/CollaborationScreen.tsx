@@ -196,6 +196,32 @@ export default function CollaborationScreen() {
     const isAuthError = errMsg.includes("401");
     const isDbHint =
       errMsg.includes("does not exist") || errMsg.includes("relation");
+    const isNetwork =
+      errMsg.includes("Network") || errMsg.includes("fetch");
+    const isTimeout = errMsg.includes("timed out") || errMsg.includes("aborted");
+    const isGateway = errMsg.includes("502") || errMsg.includes("503");
+
+    let headline: string;
+    if (isAuthError) {
+      headline =
+        "Your session has expired. Please log out and log back in to access your referral code.";
+    } else if (isDbHint) {
+      headline =
+        "The server database is still updating. Wait a minute after deploy, force-quit, and try again.";
+    } else if (isTimeout) {
+      headline =
+        "The request timed out. The server may be restarting — wait a moment and try again.";
+    } else if (isNetwork) {
+      headline =
+        "Could not reach the server. Check your internet connection and try again.";
+    } else if (isGateway) {
+      headline =
+        "The server is temporarily unavailable (502/503). It may be restarting — try again in a minute.";
+    } else {
+      headline =
+        "Unable to load referral data. Please check your connection and try again.";
+    }
+
     return (
       <ThemedView style={[styles.container, styles.centered]}>
         <Feather
@@ -206,11 +232,18 @@ export default function CollaborationScreen() {
         <ThemedText
           style={{ color: theme.textSecondary, marginTop: Spacing.md, textAlign: "center", paddingHorizontal: Spacing.xl }}
         >
-          {isAuthError
-            ? "Your session has expired. Please log out and log back in to access your referral code."
-            : isDbHint
-              ? "The server database is still updating. After your host deploys, wait a minute, force-quit the app, and open Collaboration again."
-              : "Unable to load referral data. Please check your connection and try again."}
+          {headline}
+        </ThemedText>
+        <ThemedText
+          style={{
+            color: theme.textTertiary,
+            marginTop: Spacing.sm,
+            fontSize: 12,
+            textAlign: "center",
+            paddingHorizontal: Spacing.lg,
+          }}
+        >
+          {errMsg.length > 180 ? `${errMsg.slice(0, 180)}…` : errMsg}
         </ThemedText>
       </ThemedView>
     );

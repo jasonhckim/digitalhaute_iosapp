@@ -20,10 +20,19 @@ export function getApiUrl(): string {
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const raw = (await res.text()) || res.statusText;
+    let message = raw;
+    try {
+      const json = JSON.parse(raw);
+      message = json.error || json.message || raw;
+    } catch {
+      // not JSON — use raw text
+    }
+    throw new Error(`${res.status}: ${message}`);
   }
 }
+
+const REQUEST_TIMEOUT_MS = 25_000;
 
 async function doApiRequest(
   method: string,
@@ -41,11 +50,23 @@ async function doApiRequest(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  return fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error("Request timed out — the server may be slow or unreachable.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 export async function apiRequest(
@@ -75,7 +96,18 @@ async function fetchWithToken(
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  return fetch(url, { headers });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(url, { headers, signal: controller.signal });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error("Request timed out — the server may be slow or unreachable.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
