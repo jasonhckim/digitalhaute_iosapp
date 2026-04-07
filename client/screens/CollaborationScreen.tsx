@@ -685,6 +685,7 @@ const styles = StyleSheet.create({
   },
   codeText: {
     fontSize: 28,
+    lineHeight: 38,
     fontWeight: "800",
     letterSpacing: 3,
   },
@@ -758,6 +759,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     fontSize: 28,
+    lineHeight: 38,
     fontWeight: "700",
     marginBottom: 2,
   },
