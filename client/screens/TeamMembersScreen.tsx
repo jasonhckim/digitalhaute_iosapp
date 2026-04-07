@@ -669,6 +669,7 @@ const styles = StyleSheet.create({
   },
   capacityCount: {
     fontSize: 28,
+    lineHeight: 38,
     fontWeight: "700",
   },
   capacityMax: {
