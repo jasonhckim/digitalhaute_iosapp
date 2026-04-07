@@ -9,7 +9,9 @@ import {
   TextInput,
   ActionSheetIOS,
   Platform,
+  Share,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
@@ -21,6 +23,10 @@ import { ThemedView } from "@/components/ThemedView";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiRequest } from "@/lib/query-client";
+import {
+  buildTeamInviteDeepLink,
+  buildTeamInviteWebUrl,
+} from "@/lib/inviteLinks";
 import { PLANS } from "@/lib/plans";
 import { Spacing, BorderRadius, Shadows, BrandColors } from "@/constants/theme";
 
@@ -111,16 +117,19 @@ export default function TeamMembersScreen() {
   const inviteMutation = useMutation({
     mutationFn: async (input: { email: string; role: TeamRole }) => {
       const res = await apiRequest("POST", "/api/team/invite", input);
-      return res.json();
+      return res.json() as Promise<{ invitation: TeamInvitationEntry }>;
     },
     onSuccess: () => {
       invalidateTeam();
       setInviteEmail("");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Invitation Sent", "Your team invitation has been sent.");
+      Alert.alert(
+        "Invitation created",
+        "Share the invite link from Pending invitations (Copy link or Share). Your teammate must open the link and sign in with the email you entered. They may also get an email if the server has Resend configured.",
+      );
     },
     onError: (err: Error) => {
-      Alert.alert("Error", err.message || "Failed to send invitation.");
+      Alert.alert("Error", err.message || "Failed to create invitation.");
     },
   });
 
@@ -139,8 +148,18 @@ export default function TeamMembersScreen() {
   });
 
   const updateRoleMutation = useMutation({
-    mutationFn: async ({ memberId, role }: { memberId: string; role: TeamRole }) => {
-      const res = await apiRequest("PATCH", `/api/team/members/${memberId}/role`, { role });
+    mutationFn: async ({
+      memberId,
+      role,
+    }: {
+      memberId: string;
+      role: TeamRole;
+    }) => {
+      const res = await apiRequest(
+        "PATCH",
+        `/api/team/members/${memberId}/role`,
+        { role },
+      );
       return res.json();
     },
     onSuccess: () => {
@@ -154,7 +173,10 @@ export default function TeamMembersScreen() {
 
   const cancelInviteMutation = useMutation({
     mutationFn: async (invitationId: string) => {
-      const res = await apiRequest("DELETE", `/api/team/invitations/${invitationId}`);
+      const res = await apiRequest(
+        "DELETE",
+        `/api/team/invitations/${invitationId}`,
+      );
       return res.json();
     },
     onSuccess: () => {
@@ -234,10 +256,35 @@ export default function TeamMembersScreen() {
     }
   };
 
+  const handleCopyInviteLink = async (invitation: TeamInvitationEntry) => {
+    Haptics.selectionAsync();
+    const web = buildTeamInviteWebUrl(invitation.token);
+    await Clipboard.setStringAsync(web);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      "Link copied",
+      `They should open this link and sign in with ${invitation.email}.`,
+    );
+  };
+
+  const handleShareInviteLink = async (invitation: TeamInvitationEntry) => {
+    Haptics.selectionAsync();
+    const web = buildTeamInviteWebUrl(invitation.token);
+    const deep = buildTeamInviteDeepLink(invitation.token);
+    try {
+      await Share.share({
+        message: `You're invited to join my team on Digital Haute. Sign in with ${invitation.email} when you open the link.\n\n${web}\n\n${deep}`,
+        ...(Platform.OS === "ios" ? { url: web } : {}),
+      });
+    } catch {
+      /* dismissed */
+    }
+  };
+
   const handleCancelInvite = (invitation: TeamInvitationEntry) => {
     Alert.alert(
       "Cancel Invitation",
-      `Cancel the invitation sent to ${invitation.email}?`,
+      `Cancel the invitation for ${invitation.email}?`,
       [
         { text: "Keep", style: "cancel" },
         {
@@ -329,21 +376,37 @@ export default function TeamMembersScreen() {
         >
           <View style={styles.capacityRow}>
             <View>
-              <ThemedText style={styles.capacityTitle}>Team Capacity</ThemedText>
-              <ThemedText style={[styles.capacitySubtitle, { color: theme.textSecondary }]}>
+              <ThemedText style={styles.capacityTitle}>
+                Team Capacity
+              </ThemedText>
+              <ThemedText
+                style={[
+                  styles.capacitySubtitle,
+                  { color: theme.textSecondary },
+                ]}
+              >
                 {PLANS[plan as keyof typeof PLANS]?.name ?? "Free"} Plan
               </ThemedText>
             </View>
             <View style={styles.capacityBadge}>
-              <ThemedText style={[styles.capacityCount, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.capacityCount, { color: BrandColors.gold }]}
+              >
                 {currentCount}
               </ThemedText>
-              <ThemedText style={[styles.capacityMax, { color: theme.textTertiary }]}>
+              <ThemedText
+                style={[styles.capacityMax, { color: theme.textTertiary }]}
+              >
                 /{maxUsers}
               </ThemedText>
             </View>
           </View>
-          <View style={[styles.progressBar, { backgroundColor: `${BrandColors.gold}20` }]}>
+          <View
+            style={[
+              styles.progressBar,
+              { backgroundColor: `${BrandColors.gold}20` },
+            ]}
+          >
             <View
               style={[
                 styles.progressFill,
@@ -366,20 +429,30 @@ export default function TeamMembersScreen() {
         >
           <View style={styles.sectionHeader}>
             <View
-              style={[styles.iconContainer, { backgroundColor: `${BrandColors.gold}15` }]}
+              style={[
+                styles.iconContainer,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
             >
               <Feather name="user-plus" size={20} color={BrandColors.gold} />
             </View>
-            <ThemedText style={styles.sectionTitle}>Invite Team Member</ThemedText>
+            <ThemedText style={styles.sectionTitle}>
+              Invite Team Member
+            </ThemedText>
           </View>
 
           {canInvite ? (
             <>
-              <ThemedText style={[styles.inputLabel, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.inputLabel, { color: theme.textSecondary }]}
+              >
                 Email Address
               </ThemedText>
               <TextInput
-                style={[styles.input, { color: theme.text, borderColor: theme.border }]}
+                style={[
+                  styles.input,
+                  { color: theme.text, borderColor: theme.border },
+                ]}
                 value={inviteEmail}
                 onChangeText={setInviteEmail}
                 placeholder="colleague@example.com"
@@ -389,7 +462,9 @@ export default function TeamMembersScreen() {
                 autoCorrect={false}
               />
 
-              <ThemedText style={[styles.inputLabel, { color: theme.textSecondary }]}>
+              <ThemedText
+                style={[styles.inputLabel, { color: theme.textSecondary }]}
+              >
                 Role
               </ThemedText>
               <View style={styles.roleRow}>
@@ -402,7 +477,9 @@ export default function TeamMembersScreen() {
                         borderColor:
                           inviteRole === role ? BrandColors.gold : theme.border,
                         backgroundColor:
-                          inviteRole === role ? `${BrandColors.gold}10` : "transparent",
+                          inviteRole === role
+                            ? `${BrandColors.gold}10`
+                            : "transparent",
                       },
                     ]}
                     onPress={() => {
@@ -413,7 +490,10 @@ export default function TeamMembersScreen() {
                     <View style={styles.radioOuter}>
                       {inviteRole === role && (
                         <View
-                          style={[styles.radioInner, { backgroundColor: BrandColors.gold }]}
+                          style={[
+                            styles.radioInner,
+                            { backgroundColor: BrandColors.gold },
+                          ]}
                         />
                       )}
                     </View>
@@ -422,7 +502,10 @@ export default function TeamMembersScreen() {
                         {role.charAt(0).toUpperCase() + role.slice(1)}
                       </ThemedText>
                       <ThemedText
-                        style={[styles.roleOptionHint, { color: theme.textSecondary }]}
+                        style={[
+                          styles.roleOptionHint,
+                          { color: theme.textSecondary },
+                        ]}
                       >
                         {role === "buyer"
                           ? "Can view and manage products"
@@ -449,15 +532,23 @@ export default function TeamMembersScreen() {
                 ) : (
                   <>
                     <Feather name="send" size={16} color="#fff" />
-                    <ThemedText style={styles.inviteButtonText}>Send Invitation</ThemedText>
+                    <ThemedText style={styles.inviteButtonText}>
+                      Create invitation
+                    </ThemedText>
                   </>
                 )}
               </Pressable>
             </>
           ) : (
             <View style={styles.limitReached}>
-              <Feather name="alert-circle" size={20} color={theme.textTertiary} />
-              <ThemedText style={[styles.limitText, { color: theme.textSecondary }]}>
+              <Feather
+                name="alert-circle"
+                size={20}
+                color={theme.textTertiary}
+              />
+              <ThemedText
+                style={[styles.limitText, { color: theme.textSecondary }]}
+              >
                 Team limit reached. Upgrade your plan to invite more members.
               </ThemedText>
             </View>
@@ -475,7 +566,10 @@ export default function TeamMembersScreen() {
           >
             <View style={styles.sectionHeader}>
               <View
-                style={[styles.iconContainer, { backgroundColor: `${BrandColors.gold}15` }]}
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: `${BrandColors.gold}15` },
+                ]}
               >
                 <Feather name="clock" size={20} color={BrandColors.gold} />
               </View>
@@ -498,19 +592,60 @@ export default function TeamMembersScreen() {
                   <Feather name="mail" size={16} color={theme.textTertiary} />
                 </View>
                 <View style={styles.memberInfo}>
-                  <ThemedText style={styles.memberName}>{invitation.email}</ThemedText>
-                  <ThemedText style={[styles.memberMeta, { color: theme.textTertiary }]}>
-                    {invitation.role.charAt(0).toUpperCase() + invitation.role.slice(1)} &middot; Sent{" "}
-                    {formatDate(invitation.createdAt)}
+                  <ThemedText style={styles.memberName}>
+                    {invitation.email}
+                  </ThemedText>
+                  <ThemedText
+                    style={[styles.memberMeta, { color: theme.textTertiary }]}
+                  >
+                    {invitation.role.charAt(0).toUpperCase() +
+                      invitation.role.slice(1)}{" "}
+                    &middot; Created {formatDate(invitation.createdAt)}
                   </ThemedText>
                 </View>
-                <Pressable
-                  style={[styles.cancelButton, { borderColor: BrandColors.error }]}
-                  onPress={() => handleCancelInvite(invitation)}
-                  hitSlop={8}
-                >
-                  <Feather name="x" size={14} color={BrandColors.error} />
-                </Pressable>
+                <View style={styles.inviteRowActions}>
+                  <Pressable
+                    style={[
+                      styles.inviteIconButton,
+                      { borderColor: theme.border },
+                    ]}
+                    onPress={() => handleCopyInviteLink(invitation)}
+                    hitSlop={8}
+                    accessibilityLabel="Copy invite link"
+                  >
+                    <Feather
+                      name="copy"
+                      size={16}
+                      color={theme.textSecondary}
+                    />
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.inviteIconButton,
+                      { borderColor: theme.border },
+                    ]}
+                    onPress={() => handleShareInviteLink(invitation)}
+                    hitSlop={8}
+                    accessibilityLabel="Share invite link"
+                  >
+                    <Feather
+                      name="share-2"
+                      size={16}
+                      color={theme.textSecondary}
+                    />
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.cancelButton,
+                      { borderColor: BrandColors.error },
+                    ]}
+                    onPress={() => handleCancelInvite(invitation)}
+                    hitSlop={8}
+                    accessibilityLabel="Cancel invitation"
+                  >
+                    <Feather name="x" size={14} color={BrandColors.error} />
+                  </Pressable>
+                </View>
               </View>
             ))}
           </View>
@@ -526,7 +661,10 @@ export default function TeamMembersScreen() {
         >
           <View style={styles.sectionHeader}>
             <View
-              style={[styles.iconContainer, { backgroundColor: `${BrandColors.gold}15` }]}
+              style={[
+                styles.iconContainer,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
             >
               <Feather name="users" size={20} color={BrandColors.gold} />
             </View>
@@ -536,25 +674,41 @@ export default function TeamMembersScreen() {
           {/* Owner row (always shown) */}
           <View style={[styles.memberRow, { borderColor: theme.border }]}>
             <View
-              style={[styles.memberAvatar, { backgroundColor: `${BrandColors.gold}15` }]}
+              style={[
+                styles.memberAvatar,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
             >
-              <ThemedText style={[styles.memberInitial, { color: BrandColors.gold }]}>
+              <ThemedText
+                style={[styles.memberInitial, { color: BrandColors.gold }]}
+              >
                 {user?.name?.[0]?.toUpperCase() ?? "Y"}
               </ThemedText>
             </View>
             <View style={styles.memberInfo}>
               <ThemedText style={styles.memberName}>
                 {user?.name ?? "You"}{" "}
-                <ThemedText style={[styles.youBadge, { color: theme.textTertiary }]}>
+                <ThemedText
+                  style={[styles.youBadge, { color: theme.textTertiary }]}
+                >
                   (You)
                 </ThemedText>
               </ThemedText>
-              <ThemedText style={[styles.memberMeta, { color: theme.textTertiary }]}>
+              <ThemedText
+                style={[styles.memberMeta, { color: theme.textTertiary }]}
+              >
                 {user?.email}
               </ThemedText>
             </View>
-            <View style={[styles.roleBadge, { backgroundColor: `${BrandColors.gold}15` }]}>
-              <ThemedText style={[styles.roleBadgeText, { color: BrandColors.gold }]}>
+            <View
+              style={[
+                styles.roleBadge,
+                { backgroundColor: `${BrandColors.gold}15` },
+              ]}
+            >
+              <ThemedText
+                style={[styles.roleBadgeText, { color: BrandColors.gold }]}
+              >
                 Owner
               </ThemedText>
             </View>
@@ -563,7 +717,9 @@ export default function TeamMembersScreen() {
           {members.length === 0 ? (
             <View style={styles.emptyState}>
               <Feather name="user-plus" size={32} color={theme.textTertiary} />
-              <ThemedText style={[styles.emptyText, { color: theme.textTertiary }]}>
+              <ThemedText
+                style={[styles.emptyText, { color: theme.textTertiary }]}
+              >
                 No team members yet. Invite someone above to get started.
               </ThemedText>
             </View>
@@ -590,7 +746,9 @@ export default function TeamMembersScreen() {
                   <ThemedText style={styles.memberName}>
                     {member.memberName}
                   </ThemedText>
-                  <ThemedText style={[styles.memberMeta, { color: theme.textTertiary }]}>
+                  <ThemedText
+                    style={[styles.memberMeta, { color: theme.textTertiary }]}
+                  >
                     {member.memberEmail} &middot; Joined{" "}
                     {formatDate(member.joinedAt)}
                   </ThemedText>
@@ -618,7 +776,8 @@ export default function TeamMembersScreen() {
                         },
                       ]}
                     >
-                      {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                      {member.role.charAt(0).toUpperCase() +
+                        member.role.slice(1)}
                     </ThemedText>
                   </View>
                   <Feather
@@ -782,6 +941,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     flex: 1,
     lineHeight: 20,
+  },
+  inviteRowActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  inviteIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   memberRow: {
     flexDirection: "row",

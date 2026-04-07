@@ -980,6 +980,16 @@ export class DatabaseStorage implements IStorage {
       return { success: false, reason: "You cannot accept your own invitation." };
     }
 
+    const accepter = await this.getUserById(acceptingUserId);
+    const accepterEmail = accepter?.email?.trim().toLowerCase() ?? "";
+    if (!accepterEmail || accepterEmail !== invitation.email.trim().toLowerCase()) {
+      return {
+        success: false,
+        reason:
+          "Sign in with the email address this invitation was sent to, then open the link again.",
+      };
+    }
+
     const alreadyMember = await db
       .select()
       .from(teamMembers)
