@@ -18,6 +18,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
+import { TeamInviteBootstrap } from "@/components/TeamInviteBootstrap";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { seedMockData } from "@/lib/seedData";
@@ -61,6 +62,7 @@ export default function App() {
             >
               <KeyboardProvider>
                 <NavigationContainer>
+                  <TeamInviteBootstrap />
                   <RootStackNavigator />
                 </NavigationContainer>
                 <StatusBar style="dark" />

@@ -1,4 +1,6 @@
 import type { Express, Request, Response } from "express";
+import * as fs from "fs";
+import * as path from "path";
 import { createServer, type Server } from "node:http";
 import OpenAI from "openai";
 import {
@@ -12,6 +14,7 @@ import {
   type EditorialStyle,
 } from "./tryOnService";
 import { exportProductsToShopify } from "./shopifyService";
+import { sendTeamInviteEmail } from "./teamInviteMail";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -74,8 +77,47 @@ function getNetRevenueCents(eventData: Record<string, unknown> | undefined): num
   return 0;
 }
 
+function publicBaseUrlFromReq(req: Request): string {
+  const forwardedProto = req.header("x-forwarded-proto");
+  const protocol = forwardedProto || req.protocol || "https";
+  const forwardedHost = req.header("x-forwarded-host");
+  const host = forwardedHost || req.get("host") || "localhost";
+  return `${protocol}://${host}`;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   registerAuthRoutes(app);
+
+  const joinTeamTemplatePath = path.resolve(
+    process.cwd(),
+    "server",
+    "templates",
+    "join-team.html",
+  );
+
+  app.get("/join-team/:token", (req: Request, res: Response) => {
+    const raw = req.params.token;
+    const token = Array.isArray(raw) ? raw[0] : raw;
+    if (!token || !/^[0-9a-fA-F-]{10,}$/.test(token)) {
+      return res
+        .status(400)
+        .type("text/plain")
+        .send("Invalid invitation link.");
+    }
+    let tpl: string;
+    try {
+      tpl = fs.readFileSync(joinTeamTemplatePath, "utf-8");
+    } catch {
+      return res.status(500).type("text/plain").send("Join page unavailable.");
+    }
+    const appName = process.env.APP_PUBLIC_NAME || "Digital Haute";
+    const deepLink = `digitalhaute://team-invite?token=${encodeURIComponent(token)}`;
+    const html = tpl
+      .replace(/APP_NAME_PLACEHOLDER/g, appName)
+      .replace(/DEEP_LINK_PLACEHOLDER/g, deepLink);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(html);
+  });
 
   app.post("/api/scan-label", authenticateToken, async (req: Request, res: Response) => {
     try {
@@ -512,6 +554,14 @@ CRITICAL - This is for WHOLESALE fashion buying:
         email,
         role || "buyer",
       );
+      const base = publicBaseUrlFromReq(req).replace(/\/$/, "");
+      const joinWebUrl = `${base}/join-team/${encodeURIComponent(invitation.token)}`;
+      const deepLink = `digitalhaute://team-invite?token=${encodeURIComponent(invitation.token)}`;
+      await sendTeamInviteEmail({
+        to: invitation.email,
+        joinWebUrl,
+        deepLink,
+      }).catch((err) => console.warn("[team invite] email:", err));
       return res.status(201).json({ invitation });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to send invitation";
