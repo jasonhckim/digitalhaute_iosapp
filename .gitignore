@@ -52,6 +52,5 @@ server_dist/
 # Firebase service account key
 firebase-service-account.json
 
-# Optional local Firebase client files (if you add them for native tooling)
-GoogleService-Info.plist
+# Optional local Firebase Android client (add to repo when using native Google services on Android)
 google-services.json

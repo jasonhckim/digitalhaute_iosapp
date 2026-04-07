@@ -1,27 +1,65 @@
 /**
  * Dynamic Expo config — merges with static `app.json`.
- * Google Sign-In iOS requires `iosUrlScheme` (REVERSED_CLIENT_ID from Firebase iOS app / Google Cloud).
+ * Google Sign-In iOS URL scheme comes from REVERSED_CLIENT_ID (committed GoogleService-Info.plist
+ * or EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME override).
  * @see https://react-native-google-signin.github.io/docs/setting-up/expo
  */
-module.exports = ({ config }) => {
-  const iosUrlScheme =
-    process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME ||
-    "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID";
 
-  if (
-    iosUrlScheme ===
-    "com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID"
-  ) {
-    console.warn(
-      "[app.config.js] Set EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME to your iOS reversed client ID for Google Sign-In (Firebase Console → Project settings → Your apps → iOS → GoogleService-Info.plist → REVERSED_CLIENT_ID).",
+const fs = require("fs");
+const path = require("path");
+
+const GOOGLE_IOS_SCHEME_PREFIX = "com.googleusercontent.apps.";
+const PLIST_PATH = path.join(__dirname, "GoogleService-Info.plist");
+
+/** App Store / RFC1738-style rules: alphanumeric, `.`, `-`, `+` only; no underscores. */
+function isValidGoogleIosUrlScheme(scheme) {
+  if (!scheme || typeof scheme !== "string") return false;
+  const t = scheme.trim();
+  if (!t.startsWith(GOOGLE_IOS_SCHEME_PREFIX)) return false;
+  return /^com\.googleusercontent\.apps\.[a-zA-Z0-9.\-+]+$/u.test(t);
+}
+
+function readReversedClientIdFromPlist() {
+  try {
+    if (!fs.existsSync(PLIST_PATH)) return null;
+    const xml = fs.readFileSync(PLIST_PATH, "utf8");
+    const m = xml.match(
+      /<key>REVERSED_CLIENT_ID<\/key>\s*[\r\n\t ]*<string>([^<]+)<\/string>/,
     );
+    return m ? m[1].trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = ({ config }) => {
+  const fromEnv = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim();
+  const fromPlist = readReversedClientIdFromPlist();
+  const iosUrlScheme = fromEnv || fromPlist;
+
+  const plugins = [...(config.plugins ?? [])];
+
+  if (isValidGoogleIosUrlScheme(iosUrlScheme)) {
+    plugins.push([
+      "@react-native-google-signin/google-signin",
+      { iosUrlScheme },
+    ]);
+  } else if (process.env.EAS_BUILD === "true") {
+    throw new Error(
+      "[app.config.js] Missing valid Google iOS URL scheme. Add GoogleService-Info.plist at the " +
+        "project root (with REVERSED_CLIENT_ID) or set EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME. " +
+        "The scheme must not contain underscores (App Store validation).",
+    );
+  } else {
+    console.warn(
+      "[app.config.js] Google iOS URL scheme not resolved; Google Sign-In may not work until " +
+        "GoogleService-Info.plist is present or EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME is set.",
+    );
+    plugins.push("@react-native-google-signin/google-signin");
   }
 
   return {
     ...config,
-    plugins: [
-      ...(config.plugins ?? []),
-      ["@react-native-google-signin/google-signin", { iosUrlScheme }],
-    ],
+    plugins,
   };
 };
