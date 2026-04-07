@@ -214,9 +214,25 @@ export function registerAuthRoutes(app: Express) {
     authenticateToken,
     async (req: Request, res: Response) => {
       try {
-        const user = await storage.getUserById(req.userId!);
+        const uid = req.userId!;
+        let user = await storage.getUserById(uid);
+
         if (!user) {
-          return res.status(404).json({ error: "User not found" });
+          // Auto-create the DB row from Firebase when missing (e.g. after
+          // a DB migration or a failed initial profile save).
+          try {
+            const fbUser = await admin.auth().getUser(uid);
+            user = await storage.createUser({
+              id: uid,
+              businessName: "",
+              name: fbUser.displayName || fbUser.email?.split("@")[0] || "",
+              email: fbUser.email || "",
+              role: "owner",
+            });
+          } catch (createErr) {
+            console.error("Auto-create user failed:", createErr);
+            return res.status(404).json({ error: "User not found" });
+          }
         }
 
         res.json({ user: sanitizeUser(user) });
