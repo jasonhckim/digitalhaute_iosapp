@@ -6,6 +6,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BrandColors } from "@/constants/theme";
 
+/* eslint-disable react/no-unescaped-entities -- policy copy uses conventional quotation marks */
 const EFFECTIVE_DATE = "March 10, 2026";
 
 export default function PrivacyPolicyScreen() {
@@ -37,7 +38,9 @@ export default function PrivacyPolicyScreen() {
       <ThemedText style={[styles.body, { color: theme.textSecondary }]}>
         When you create an account we collect your name, email address, and
         business name. Authentication is handled by Firebase Authentication;
-        passwords are never stored on our servers.
+        passwords are never stored on our servers. If you use Apple Sign-In or
+        Google Sign-In, that provider handles authentication and shares limited
+        account details with us through Firebase.
       </ThemedText>
 
       <ThemedText style={styles.subheading}>Product & Business Data</ThemedText>
@@ -70,15 +73,19 @@ export default function PrivacyPolicyScreen() {
         and crash reports to improve the App's performance and reliability.
       </ThemedText>
 
-      <ThemedText style={styles.heading}>2. How We Use Your Information</ThemedText>
+      <ThemedText style={styles.heading}>
+        2. How We Use Your Information
+      </ThemedText>
       <ThemedText style={[styles.body, { color: theme.textSecondary }]}>
         We use the information we collect to:{"\n\n"}
         {"\u2022"} Provide, maintain, and improve the App{"\n"}
         {"\u2022"} Process your label scans and product data{"\n"}
         {"\u2022"} Manage your account and subscription{"\n"}
         {"\u2022"} Sync your data across devices when signed in{"\n"}
-        {"\u2022"} Integrate with third-party services you connect (e.g., Shopify){"\n"}
-        {"\u2022"} Send transactional notifications related to your account{"\n"}
+        {"\u2022"} Integrate with third-party services you connect (e.g.,
+        Shopify){"\n"}
+        {"\u2022"} Send transactional notifications related to your account
+        {"\n"}
         {"\u2022"} Respond to your support requests{"\n"}
         {"\u2022"} Comply with legal obligations
       </ThemedText>
@@ -88,9 +95,12 @@ export default function PrivacyPolicyScreen() {
         The App uses the following third-party services that may collect or
         process your data according to their own privacy policies:{"\n\n"}
         {"\u2022"} Firebase (Google) — Authentication and backend services{"\n"}
+        {"\u2022"} Google — Google Sign-In (identity and account linkage via
+        Firebase){"\n"}
         {"\u2022"} Google Gemini — AI-powered label scanning{"\n"}
         {"\u2022"} RevenueCat — Subscription management{"\n"}
-        {"\u2022"} Shopify — Product export (only when you connect your store){"\n"}
+        {"\u2022"} Shopify — Product export (only when you connect your store)
+        {"\n"}
         {"\u2022"} Apple — App Store and in-app purchases
       </ThemedText>
 
@@ -127,8 +137,9 @@ export default function PrivacyPolicyScreen() {
       <ThemedText style={styles.heading}>7. Children's Privacy</ThemedText>
       <ThemedText style={[styles.body, { color: theme.textSecondary }]}>
         The App is not intended for use by anyone under the age of 18. We do not
-        knowingly collect personal information from children. If we learn that we
-        have collected personal data from a child, we will delete it promptly.
+        knowingly collect personal information from children. If we learn that
+        we have collected personal data from a child, we will delete it
+        promptly.
       </ThemedText>
 
       <ThemedText style={styles.heading}>8. Changes to This Policy</ThemedText>

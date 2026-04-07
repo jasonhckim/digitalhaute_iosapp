@@ -88,6 +88,9 @@ export default function TeamMembersScreen() {
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<TeamRole>("buyer");
+  /** Shown right under the form so owners do not have to hunt in Pending Invitations. */
+  const [justCreatedInvite, setJustCreatedInvite] =
+    useState<TeamInvitationEntry | null>(null);
 
   const {
     data: membersData,
@@ -119,13 +122,43 @@ export default function TeamMembersScreen() {
       const res = await apiRequest("POST", "/api/team/invite", input);
       return res.json() as Promise<{ invitation: TeamInvitationEntry }>;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       invalidateTeam();
       setInviteEmail("");
+      setJustCreatedInvite(data.invitation);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const web = buildTeamInviteWebUrl(data.invitation.token);
+      const deep = buildTeamInviteDeepLink(data.invitation.token);
       Alert.alert(
         "Invitation created",
-        "Share the invite link from Pending invitations (Copy link or Share). Your teammate must open the link and sign in with the email you entered. They may also get an email if the server has Resend configured.",
+        "Tap Copy link or Share, or use the buttons under the form. Your teammate must sign in with the email you entered.",
+        [
+          {
+            text: "Copy link",
+            onPress: () => {
+              void Clipboard.setStringAsync(web);
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              );
+            },
+          },
+          {
+            text: "Share…",
+            onPress: () => {
+              void (async () => {
+                try {
+                  await Share.share({
+                    message: `You're invited to join my team on Digital Haute. Sign in with ${data.invitation.email} when you open the link.\n\n${web}\n\n${deep}`,
+                    ...(Platform.OS === "ios" ? { url: web } : {}),
+                  });
+                } catch {
+                  /* dismissed */
+                }
+              })();
+            },
+          },
+          { text: "OK", style: "cancel" },
+        ],
       );
     },
     onError: (err: Error) => {
@@ -538,6 +571,84 @@ export default function TeamMembersScreen() {
                   </>
                 )}
               </Pressable>
+
+              {justCreatedInvite ? (
+                <View
+                  style={[
+                    styles.justCreatedBanner,
+                    {
+                      borderColor: BrandColors.gold,
+                      backgroundColor: `${BrandColors.gold}12`,
+                    },
+                  ]}
+                >
+                  <ThemedText style={styles.justCreatedTitle}>
+                    Share invite link
+                  </ThemedText>
+                  <ThemedText
+                    style={[
+                      styles.justCreatedHint,
+                      { color: theme.textSecondary },
+                    ]}
+                    numberOfLines={3}
+                  >
+                    {buildTeamInviteWebUrl(justCreatedInvite.token)}
+                  </ThemedText>
+                  <View style={styles.justCreatedActions}>
+                    <Pressable
+                      style={[
+                        styles.justCreatedButton,
+                        { backgroundColor: BrandColors.gold },
+                      ]}
+                      onPress={() => handleCopyInviteLink(justCreatedInvite)}
+                    >
+                      <Feather name="copy" size={16} color="#fff" />
+                      <ThemedText style={styles.justCreatedButtonText}>
+                        Copy link
+                      </ThemedText>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        styles.justCreatedButton,
+                        {
+                          backgroundColor: theme.backgroundRoot,
+                          borderWidth: 1,
+                          borderColor: theme.border,
+                        },
+                      ]}
+                      onPress={() => handleShareInviteLink(justCreatedInvite)}
+                    >
+                      <Feather
+                        name="share-2"
+                        size={16}
+                        color={theme.textSecondary}
+                      />
+                      <ThemedText
+                        style={[
+                          styles.justCreatedButtonTextDark,
+                          { color: theme.text },
+                        ]}
+                      >
+                        Share
+                      </ThemedText>
+                    </Pressable>
+                    <Pressable
+                      style={styles.justCreatedDismiss}
+                      onPress={() => setJustCreatedInvite(null)}
+                      hitSlop={8}
+                    >
+                      <ThemedText
+                        style={[
+                          styles.justCreatedDismissText,
+                          { color: theme.textTertiary },
+                        ]}
+                      >
+                        Dismiss
+                      </ThemedText>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
             </>
           ) : (
             <View style={styles.limitReached}>
@@ -930,6 +1041,53 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  justCreatedBanner: {
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  justCreatedTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginBottom: Spacing.xs,
+  },
+  justCreatedHint: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginBottom: Spacing.md,
+  },
+  justCreatedActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  justCreatedButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  justCreatedButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  justCreatedButtonTextDark: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  justCreatedDismiss: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+  },
+  justCreatedDismissText: {
+    fontSize: 13,
+    fontWeight: "500",
   },
   limitReached: {
     flexDirection: "row",

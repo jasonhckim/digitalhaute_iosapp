@@ -18,7 +18,9 @@ import { Input } from "@/components/Input";
 import { Select } from "@/components/Select";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { useAuth } from "@/contexts/AuthContext";
+import { isGoogleSignInConfigured } from "@/lib/auth";
 import { Spacing, BrandColors, FontFamilies } from "@/constants/theme";
 import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -34,7 +36,8 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const navigation = useNavigation<NavProp>();
-  const { register, loginWithApple } = useAuth();
+  const { register, loginWithApple, loginWithGoogle } = useAuth();
+  const showGoogleSignIn = isGoogleSignInConfigured();
 
   const [businessName, setBusinessName] = useState("");
   const [name, setName] = useState("");
@@ -90,10 +93,17 @@ export default function RegisterScreen() {
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string };
       if (err.code === "ERR_REQUEST_CANCELED") return;
-      Alert.alert(
-        "Apple Sign In Failed",
-        err.message || "Please try again.",
-      );
+      Alert.alert("Apple Sign In Failed", err.message || "Please try again.");
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: unknown) {
+      const err = error as { code?: string; message?: string };
+      if (err.code === "ERR_REQUEST_CANCELED") return;
+      Alert.alert("Google Sign In Failed", err.message || "Please try again.");
     }
   };
 
@@ -176,11 +186,23 @@ export default function RegisterScreen() {
         </View>
 
         <View style={styles.divider}>
-          <View style={[styles.dividerLine, { backgroundColor: BrandColors.border }]} />
-          <ThemedText style={[styles.dividerText, { color: theme.textTertiary }]}>
+          <View
+            style={[
+              styles.dividerLine,
+              { backgroundColor: BrandColors.border },
+            ]}
+          />
+          <ThemedText
+            style={[styles.dividerText, { color: theme.textTertiary }]}
+          >
             or
           </ThemedText>
-          <View style={[styles.dividerLine, { backgroundColor: BrandColors.border }]} />
+          <View
+            style={[
+              styles.dividerLine,
+              { backgroundColor: BrandColors.border },
+            ]}
+          />
         </View>
 
         <AppleAuthentication.AppleAuthenticationButton
@@ -190,6 +212,10 @@ export default function RegisterScreen() {
           style={styles.appleButton}
           onPress={handleAppleSignIn}
         />
+
+        {showGoogleSignIn ? (
+          <GoogleSignInButton variant="signup" onPress={handleGoogleSignIn} />
+        ) : null}
 
         <Pressable
           style={styles.loginLink}
