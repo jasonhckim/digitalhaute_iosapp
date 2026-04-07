@@ -3,16 +3,49 @@ import {
   signInWithEmailAndPassword,
   signOut,
   OAuthProvider,
+  GoogleAuthProvider,
   signInWithCredential,
 } from "firebase/auth";
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
+import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/lib/firebase";
 import { getApiUrl } from "@/lib/query-client";
 import type { AuthUser } from "@/types";
 
 const CACHED_PROFILE_KEY = "@digitalhaute/cached_profile";
+
+let googleSignInConfigured = false;
+
+function ensureGoogleSignInConfigured(): void {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  if (!webClientId) {
+    throw new Error(
+      "Google Sign-In is not configured. Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (Firebase Console → Authentication → Sign-in method → Google → Web SDK configuration).",
+    );
+  }
+  if (!googleSignInConfigured) {
+    GoogleSignin.configure({
+      webClientId,
+      offlineAccess: false,
+    });
+    googleSignInConfigured = true;
+  }
+}
+
+function throwGoogleSignInCancelled(): never {
+  const err = new Error("Sign in cancelled");
+  (err as { code?: string }).code = "ERR_REQUEST_CANCELED";
+  throw err;
+}
+
+/** Native Google Sign-In only (requires dev build; not available in Expo Go). */
+export function isGoogleSignInConfigured(): boolean {
+  if (Platform.OS === "web") return false;
+  return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim());
+}
 
 async function authFetch(
   route: string,
@@ -121,6 +154,70 @@ export async function loginUser(data: {
   password: string;
 }): Promise<void> {
   await signInWithEmailAndPassword(auth, data.email, data.password);
+}
+
+export async function signInWithGoogle(): Promise<AuthUser> {
+  ensureGoogleSignInConfigured();
+
+  if (Platform.OS === "android") {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  }
+
+  const signInResult = await GoogleSignin.signIn();
+  if (signInResult.type === "cancelled") {
+    throwGoogleSignInCancelled();
+  }
+
+  let idToken = signInResult.data.idToken;
+  if (!idToken) {
+    const tokens = await GoogleSignin.getTokens();
+    idToken = tokens.idToken;
+  }
+  if (!idToken) {
+    throw new Error("Google sign-in failed: no ID token returned.");
+  }
+
+  const credential = GoogleAuthProvider.credential(idToken);
+  const firebaseResult = await signInWithCredential(auth, credential);
+
+  const googleUser = signInResult.data.user;
+  const displayName =
+    googleUser.name ||
+    [googleUser.givenName, googleUser.familyName].filter(Boolean).join(" ") ||
+    firebaseResult.user.displayName ||
+    "";
+
+  const uid = firebaseResult.user.uid;
+  const email = firebaseResult.user.email || googleUser.email || "";
+
+  try {
+    const res = await authFetch("/api/auth/profile", {
+      method: "POST",
+      body: JSON.stringify({
+        businessName: "",
+        name: displayName,
+        role: "owner",
+      }),
+    });
+
+    if (res.ok) {
+      const body = await res.json();
+      return body.user;
+    }
+  } catch {
+    // Server unreachable — fall through to local fallback
+  }
+
+  return {
+    id: uid,
+    businessName: "",
+    name: displayName,
+    email,
+    role: "owner",
+    subscriptionPlan: "free" as const,
+    createdAt:
+      firebaseResult.user.metadata.creationTime || new Date().toISOString(),
+  };
 }
 
 export async function signInWithApple(): Promise<AuthUser> {
