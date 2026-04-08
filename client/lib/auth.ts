@@ -9,6 +9,7 @@ import {
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as Crypto from "expo-crypto";
 import { GoogleSignin } from "@react-native-google-signin/google-signin";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/lib/firebase";
@@ -19,8 +20,19 @@ const CACHED_PROFILE_KEY = "@digitalhaute/cached_profile";
 
 let googleSignInConfigured = false;
 
+function getGoogleWebClientId(): string | undefined {
+  const fromEnv = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  if (fromEnv) return fromEnv;
+  const fromExtra = Constants.expoConfig?.extra?.googleWebClientId;
+  if (typeof fromExtra === "string") {
+    const t = fromExtra.trim();
+    if (t) return t;
+  }
+  return undefined;
+}
+
 function ensureGoogleSignInConfigured(): void {
-  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const webClientId = getGoogleWebClientId();
   if (!webClientId) {
     throw new Error(
       "Google Sign-In is not configured. Add EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (Firebase Console → Authentication → Sign-in method → Google → Web SDK configuration).",
@@ -44,7 +56,7 @@ function throwGoogleSignInCancelled(): never {
 /** Native Google Sign-In only (requires dev build; not available in Expo Go). */
 export function isGoogleSignInConfigured(): boolean {
   if (Platform.OS === "web") return false;
-  return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim());
+  return Boolean(getGoogleWebClientId());
 }
 
 async function authFetch(

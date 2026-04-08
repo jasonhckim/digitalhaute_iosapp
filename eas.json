@@ -18,7 +18,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "567937870502-p61spvui60cvt62dkr1dr28vlu521k3e.apps.googleusercontent.com"
       }
     },
     "development": {
@@ -33,7 +34,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "567937870502-p61spvui60cvt62dkr1dr28vlu521k3e.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -47,7 +49,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "567937870502-p61spvui60cvt62dkr1dr28vlu521k3e.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -60,7 +63,8 @@
         "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "digitalhaute-68c26",
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "digitalhaute-68c26.firebasestorage.app",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "567937870502",
-        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267"
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:567937870502:ios:4fadb0c2dc11d84f762267",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "567937870502-p61spvui60cvt62dkr1dr28vlu521k3e.apps.googleusercontent.com"
       }
     }
   },
