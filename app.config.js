@@ -19,12 +19,15 @@ function isValidGoogleIosUrlScheme(scheme) {
   return /^com\.googleusercontent\.apps\.[a-zA-Z0-9.\-+]+$/u.test(t);
 }
 
-function readReversedClientIdFromPlist() {
+function readPlistString(key) {
   try {
     if (!fs.existsSync(PLIST_PATH)) return null;
     const xml = fs.readFileSync(PLIST_PATH, "utf8");
+    const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const m = xml.match(
-      /<key>REVERSED_CLIENT_ID<\/key>\s*[\r\n\t ]*<string>([^<]+)<\/string>/,
+      new RegExp(
+        `<key>${escaped}<\\/key>\\s*[\\r\\n\\t ]*<string>([^<]+)<\\/string>`,
+      ),
     );
     return m ? m[1].trim() : null;
   } catch {
@@ -32,10 +35,21 @@ function readReversedClientIdFromPlist() {
   }
 }
 
+function readReversedClientIdFromPlist() {
+  return readPlistString("REVERSED_CLIENT_ID");
+}
+
 module.exports = ({ config }) => {
   const fromEnv = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME?.trim();
   const fromPlist = readReversedClientIdFromPlist();
   const iosUrlScheme = fromEnv || fromPlist;
+
+  /** For GoogleSignin.configure({ webClientId }). Prefer EXPO_PUBLIC_* on EAS; plist fallbacks for local/CI. */
+  const envWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim();
+  const plistWebClientId = readPlistString("GOOGLE_WEB_CLIENT_ID");
+  const plistIosClientId = readPlistString("CLIENT_ID");
+  const googleWebClientId =
+    envWebClientId || plistWebClientId || plistIosClientId || undefined;
 
   const plugins = [...(config.plugins ?? [])];
 
@@ -61,5 +75,9 @@ module.exports = ({ config }) => {
   return {
     ...config,
     plugins,
+    extra: {
+      ...(config.extra ?? {}),
+      googleWebClientId,
+    },
   };
 };
