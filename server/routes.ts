@@ -16,6 +16,7 @@ import {
 import { exportProductsToShopify } from "./shopifyService";
 import { sendTeamInviteEmail } from "./teamInviteMail";
 import { resolveWorkspaceForRequest } from "./workspaceContext";
+import { sendPushToUsers, sendPushToWorkspace } from "./pushNotifications";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -746,6 +747,9 @@ CRITICAL - This is for WHOLESALE fashion buying:
       const wid = await requireWorkspaceOwnerId(req);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const data = req.body;
+
+      const oldProduct = data.status !== undefined ? await storage.getProductById(wid, id) : null;
+
       const updates: Record<string, unknown> = {};
       if (data.name !== undefined) updates.name = data.name;
       if (data.styleNumber !== undefined) updates.styleNumber = data.styleNumber;
@@ -774,6 +778,20 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
       const item = await storage.updateProduct(wid, id, updates);
       if (!item) return res.status(404).json({ error: "Product not found" });
+
+      if (oldProduct && data.status && oldProduct.status !== data.status) {
+        const label = item.name || item.styleNumber || "Product";
+        const newStatus = data.status as string;
+        const DELIVERY_STATUSES = ["shipped", "delivered", "received"];
+
+        if (DELIVERY_STATUSES.includes(newStatus)) {
+          const verb = newStatus === "shipped" ? "has shipped" : newStatus === "delivered" ? "was delivered" : "has been received";
+          sendPushToWorkspace(wid, "deliveryAlerts", "Delivery Update", `${label} ${verb}.`, { screen: "ProductDetail", productId: id });
+        }
+
+        sendPushToWorkspace(wid, "orderStatusUpdates", "Order Status Changed", `${label} is now ${newStatus}.`, { screen: "ProductDetail", productId: id });
+      }
+
       return res.json({ product: item });
     } catch (error) {
       console.error("Update product error:", error);
@@ -942,6 +960,9 @@ CRITICAL - This is for WHOLESALE fashion buying:
       const wid = await requireWorkspaceOwnerId(req);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const data = req.body;
+
+      const oldBudget = await storage.getBudgetById(wid, id);
+
       const updates: Record<string, unknown> = {};
       if (data.season !== undefined) updates.season = data.season;
       if (data.category !== undefined) updates.category = data.category;
@@ -951,6 +972,22 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
       const item = await storage.updateBudget(wid, id, updates);
       if (!item) return res.status(404).json({ error: "Budget not found" });
+
+      if (oldBudget) {
+        const oldAmount = Number(oldBudget.amount);
+        const newAmount = Number(item.amount);
+        const oldSpent = Number(oldBudget.spent);
+        const newSpent = Number(item.spent);
+        if (newAmount > 0) {
+          const wasBelowLimit = oldAmount > 0 ? oldSpent / oldAmount < 1 : true;
+          const isOverLimit = newSpent / newAmount >= 1;
+          if (wasBelowLimit && isOverLimit) {
+            const label = [item.season, item.category].filter(Boolean).join(" ");
+            sendPushToWorkspace(wid, "budgetAlerts", "Budget Exceeded", `${label} budget is now ${Math.round((newSpent / newAmount) * 100)}% spent.`, { screen: "Budgets", budgetId: id });
+          }
+        }
+      }
+
       return res.json({ budget: item });
     } catch (error) {
       console.error("Update budget error:", error);
@@ -969,7 +1006,24 @@ CRITICAL - This is for WHOLESALE fashion buying:
   app.post("/api/budgets/update-spent", authenticateToken, async (req: Request, res: Response) => {
     try {
       const wid = await requireWorkspaceOwnerId(req);
+
+      const before = await storage.listBudgets(wid);
       await storage.updateBudgetSpent(wid);
+      const after = await storage.listBudgets(wid);
+
+      for (const updated of after) {
+        const old = before.find((b) => b.id === updated.id);
+        if (!old) continue;
+        const amount = Number(updated.amount);
+        if (amount <= 0) continue;
+        const oldPct = Number(old.spent) / amount;
+        const newPct = Number(updated.spent) / amount;
+        if (oldPct < 1 && newPct >= 1) {
+          const label = [updated.season, updated.category].filter(Boolean).join(" ");
+          sendPushToWorkspace(wid, "budgetAlerts", "Budget Exceeded", `${label} budget is now ${Math.round(newPct * 100)}% spent.`, { screen: "Budgets", budgetId: updated.id });
+        }
+      }
+
       return res.json({ success: true });
     } catch (error) {
       console.error("Update budget spent error:", error);
@@ -1064,6 +1118,100 @@ CRITICAL - This is for WHOLESALE fashion buying:
     } catch (error) {
       console.error("Update settings error:", error);
       return res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  // ── Push Notifications ──────────────────────────────────────────────
+
+  app.post("/api/notifications/register", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const { expoPushToken, platform } = req.body ?? {};
+      if (typeof expoPushToken !== "string" || !expoPushToken.startsWith("ExponentPushToken[")) {
+        return res.status(400).json({ error: "Valid expoPushToken is required" });
+      }
+      const validPlatforms = ["ios", "android", "web"] as const;
+      const p = typeof platform === "string" && (validPlatforms as readonly string[]).includes(platform)
+        ? (platform as "ios" | "android" | "web")
+        : "ios";
+      const token = await storage.upsertPushToken(req.userId!, expoPushToken, p);
+      return res.json({ success: true, token });
+    } catch (error) {
+      console.error("Register push token error:", error);
+      return res.status(500).json({ error: "Failed to register push token" });
+    }
+  });
+
+  app.get("/api/notifications/preferences", authenticateToken, async (req: Request, res: Response) => {
+    const prefs = await storage.getNotificationPreferences(req.userId!);
+    return res.json({
+      preferences: prefs ?? {
+        deliveryAlerts: true,
+        budgetAlerts: true,
+        orderStatusUpdates: true,
+        weeklySummary: false,
+      },
+    });
+  });
+
+  app.patch("/api/notifications/preferences", authenticateToken, async (req: Request, res: Response) => {
+    try {
+      const allowed = ["deliveryAlerts", "budgetAlerts", "orderStatusUpdates", "weeklySummary"] as const;
+      const updates: Record<string, boolean> = {};
+      for (const key of allowed) {
+        if (typeof req.body?.[key] === "boolean") {
+          updates[key] = req.body[key];
+        }
+      }
+      const prefs = await storage.upsertNotificationPreferences(req.userId!, updates);
+      return res.json({ preferences: prefs });
+    } catch (error) {
+      console.error("Update notification preferences error:", error);
+      return res.status(500).json({ error: "Failed to update notification preferences" });
+    }
+  });
+
+  app.post("/api/cron/weekly-summary", async (req: Request, res: Response) => {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      return res.status(503).json({ error: "Cron not configured" });
+    }
+    const authHeader = req.headers.authorization;
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const subscribers = await storage.listUsersWithWeeklySummary();
+      if (subscribers.length === 0) {
+        return res.json({ sent: 0 });
+      }
+
+      let sent = 0;
+      for (const { userId } of subscribers) {
+        const stats = await storage.getDashboardStats(userId);
+        const lines: string[] = [];
+        lines.push(`${stats.totalProducts} active product${stats.totalProducts !== 1 ? "s" : ""}`);
+        if (stats.totalBudget > 0) {
+          const pct = Math.round(stats.budgetUtilization);
+          lines.push(`Budget: ${pct}% used ($${stats.totalSpent.toFixed(0)} / $${stats.totalBudget.toFixed(0)})`);
+        }
+        if (stats.nextDeliveryDate) {
+          lines.push(`Next delivery: ${stats.nextDeliveryDate}`);
+        }
+
+        await sendPushToUsers(
+          [userId],
+          "Your Weekly Summary",
+          lines.join(" · "),
+          { screen: "Dashboard" },
+        );
+        sent++;
+      }
+
+      return res.json({ sent });
+    } catch (error) {
+      console.error("Weekly summary cron error:", error);
+      return res.status(500).json({ error: "Cron failed" });
     }
   });
 

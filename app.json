@@ -56,7 +56,14 @@
           "photosPermission": "Allow Digital Haute to access your photos to add product images."
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#C4A265"
+        }
+      ]
     ],
     "experiments": {
       "reactCompiler": true

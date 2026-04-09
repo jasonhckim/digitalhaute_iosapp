@@ -21,6 +21,7 @@ import {
 } from "@/lib/auth";
 import { clearAllData } from "@/lib/seedData";
 import { migrateLocalDataToServer } from "@/lib/storage";
+import { registerForPushNotifications } from "@/lib/pushNotifications";
 import {
   identifyUser as rcIdentify,
   logOutPurchases,
@@ -97,6 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 setUser(profile);
                 migrateLocalDataToServer().catch((err) =>
                   console.warn("Data migration error:", err),
+                );
+                registerForPushNotifications().catch((err) =>
+                  console.warn("Push registration error:", err),
                 );
               }
             } catch (error) {

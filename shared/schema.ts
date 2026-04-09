@@ -291,6 +291,33 @@ export const userSettings = pgTable("user_settings", {
     .default(sql`now()`),
 });
 
+// ── Push Notifications ──
+
+export const pushTokens = pgTable("push_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expoPushToken: text("expo_push_token").notNull(),
+  platform: text("platform", { enum: ["ios", "android", "web"] }).notNull().default("ios"),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`now()`),
+});
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  deliveryAlerts: boolean("delivery_alerts").notNull().default(true),
+  budgetAlerts: boolean("budget_alerts").notNull().default(true),
+  orderStatusUpdates: boolean("order_status_updates").notNull().default(true),
+  weeklySummary: boolean("weekly_summary").notNull().default(false),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`now()`),
+});
+
 export const profileSchema = z.object({
   businessName: z.string().min(1, "Business name is required"),
   name: z.string().min(1, "Name is required"),
@@ -313,3 +340,5 @@ export type DbBudget = typeof budgets.$inferSelect;
 export type InsertBudget = typeof budgets.$inferInsert;
 export type DbEvent = typeof events.$inferSelect;
 export type UserSettings = typeof userSettings.$inferSelect;
+export type PushToken = typeof pushTokens.$inferSelect;
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
