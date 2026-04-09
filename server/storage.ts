@@ -5,11 +5,15 @@ import {
   commissionLedger,
   events,
   type InsertUser,
+  notificationPreferences,
+  type NotificationPreference,
   payoutRequests,
   payoutMethodEnum,
   type PayoutRequest,
   payoutStatusEnum,
   products,
+  pushTokens,
+  type PushToken,
   referrals,
   teamInvitations,
   type TeamInvitation,
@@ -160,6 +164,17 @@ export interface IStorage {
   getTeamForUser(
     userId: string,
   ): Promise<{ ownerUserId: string; role: string } | undefined>;
+
+  // ── Push Notifications ──
+  upsertPushToken(userId: string, expoPushToken: string, platform: "ios" | "android" | "web"): Promise<PushToken>;
+  deletePushToken(expoPushToken: string): Promise<void>;
+  listPushTokensForUsers(userIds: string[]): Promise<PushToken[]>;
+  getNotificationPreferences(userId: string): Promise<NotificationPreference | undefined>;
+  upsertNotificationPreferences(
+    userId: string,
+    prefs: Partial<Pick<NotificationPreference, "deliveryAlerts" | "budgetAlerts" | "orderStatusUpdates" | "weeklySummary">>,
+  ): Promise<NotificationPreference>;
+  listUsersWithWeeklySummary(): Promise<Array<{ userId: string }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1521,6 +1536,88 @@ export class DatabaseStorage implements IStorage {
       totalSpent,
       totalRemaining: totalBudget - totalSpent,
     };
+  }
+
+  // ── Push Notifications ──────────────────────────────────────────────────
+
+  async upsertPushToken(userId: string, expoPushToken: string, platform: "ios" | "android" | "web"): Promise<PushToken> {
+    const now = new Date().toISOString();
+    const existing = await db
+      .select()
+      .from(pushTokens)
+      .where(and(eq(pushTokens.userId, userId), eq(pushTokens.expoPushToken, expoPushToken)));
+
+    if (existing[0]) {
+      const updated = await db
+        .update(pushTokens)
+        .set({ platform, updatedAt: now })
+        .where(eq(pushTokens.id, existing[0].id))
+        .returning();
+      return updated[0];
+    }
+
+    const inserted = await db
+      .insert(pushTokens)
+      .values({ id: randomUUID(), userId, expoPushToken, platform, updatedAt: now })
+      .returning();
+    return inserted[0];
+  }
+
+  async deletePushToken(expoPushToken: string): Promise<void> {
+    await db.delete(pushTokens).where(eq(pushTokens.expoPushToken, expoPushToken));
+  }
+
+  async listPushTokensForUsers(userIds: string[]): Promise<PushToken[]> {
+    if (userIds.length === 0) return [];
+    return db
+      .select()
+      .from(pushTokens)
+      .where(sql`${pushTokens.userId} = ANY(ARRAY[${sql.join(userIds.map((id) => sql`${id}`), sql`, `)}]::text[])`);
+  }
+
+  async getNotificationPreferences(userId: string): Promise<NotificationPreference | undefined> {
+    const rows = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId));
+    return rows[0];
+  }
+
+  async upsertNotificationPreferences(
+    userId: string,
+    prefs: Partial<Pick<NotificationPreference, "deliveryAlerts" | "budgetAlerts" | "orderStatusUpdates" | "weeklySummary">>,
+  ): Promise<NotificationPreference> {
+    const now = new Date().toISOString();
+    const existing = await this.getNotificationPreferences(userId);
+
+    if (existing) {
+      const updated = await db
+        .update(notificationPreferences)
+        .set({ ...prefs, updatedAt: now })
+        .where(eq(notificationPreferences.userId, userId))
+        .returning();
+      return updated[0];
+    }
+
+    const inserted = await db
+      .insert(notificationPreferences)
+      .values({
+        userId,
+        deliveryAlerts: prefs.deliveryAlerts ?? true,
+        budgetAlerts: prefs.budgetAlerts ?? true,
+        orderStatusUpdates: prefs.orderStatusUpdates ?? true,
+        weeklySummary: prefs.weeklySummary ?? false,
+        updatedAt: now,
+      })
+      .returning();
+    return inserted[0];
+  }
+
+  async listUsersWithWeeklySummary(): Promise<Array<{ userId: string }>> {
+    return db
+      .select({ userId: notificationPreferences.userId })
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.weeklySummary, true));
   }
 }
 
