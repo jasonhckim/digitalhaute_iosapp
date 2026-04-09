@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useLayoutEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -54,10 +55,20 @@ interface TeamInvitationEntry {
   expiresAt: string;
 }
 
+interface WorkspaceOwnerSummary {
+  id: string;
+  name: string;
+  email: string;
+  businessName: string;
+}
+
 interface MembersResponse {
   members: TeamMemberEntry[];
   count: number;
   plan: string;
+  viewerRole: "owner" | "member";
+  workspaceOwner?: WorkspaceOwnerSummary | null;
+  yourTeamRole?: string;
 }
 
 interface InvitationsResponse {
@@ -80,6 +91,7 @@ function formatDate(iso: string): string {
 }
 
 export default function TeamMembersScreen() {
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
@@ -110,7 +122,18 @@ export default function TeamMembersScreen() {
     queryKey: ["api", "team", "invitations"],
     staleTime: 0,
     refetchOnMount: "always",
+    enabled: Boolean(
+      membersData && membersData.viewerRole === "owner",
+    ),
   });
+
+  useLayoutEffect(() => {
+    if (!membersData) return;
+    navigation.setOptions({
+      headerTitle:
+        membersData.viewerRole === "member" ? "My team" : "Team Members",
+    });
+  }, [navigation, membersData]);
 
   const invalidateTeam = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["api", "team", "members"] });
@@ -335,8 +358,13 @@ export default function TeamMembersScreen() {
   const currentCount = members.length + 1; // +1 for owner
   const pendingInvitations =
     invitationsData?.invitations.filter((i) => i.status === "pending") ?? [];
-  const isLoading = isLoadingMembers || isLoadingInvitations;
-  const canInvite = currentCount + pendingInvitations.length < maxUsers;
+  const isTeamOwner = membersData?.viewerRole !== "member";
+  const workspaceOwner = membersData?.workspaceOwner;
+  const isLoading =
+    isLoadingMembers ||
+    (Boolean(membersData?.viewerRole === "owner") && isLoadingInvitations);
+  const canInvite =
+    isTeamOwner && currentCount + pendingInvitations.length < maxUsers;
   if (isLoading) {
     return (
       <ThemedView style={[styles.container, styles.centered]}>
@@ -419,6 +447,7 @@ export default function TeamMembersScreen() {
                 ]}
               >
                 {PLANS[plan as keyof typeof PLANS]?.name ?? "Free"} Plan
+                {!isTeamOwner ? " (workspace owner)" : ""}
               </ThemedText>
             </View>
             <View style={styles.capacityBadge}>
@@ -452,7 +481,8 @@ export default function TeamMembersScreen() {
           </View>
         </View>
 
-        {/* Invite Form */}
+        {/* Invite Form (owner only) */}
+        {isTeamOwner ? (
         <View
           style={[
             styles.section,
@@ -665,9 +695,10 @@ export default function TeamMembersScreen() {
             </View>
           )}
         </View>
+        ) : null}
 
         {/* Pending Invitations */}
-        {pendingInvitations.length > 0 && (
+        {isTeamOwner && pendingInvitations.length > 0 && (
           <View
             style={[
               styles.section,
@@ -782,7 +813,7 @@ export default function TeamMembersScreen() {
             <ThemedText style={styles.sectionTitle}>Team Members</ThemedText>
           </View>
 
-          {/* Owner row (always shown) */}
+          {/* Owner row (workspace owner — you when owner, or team lead when member) */}
           <View style={[styles.memberRow, { borderColor: theme.border }]}>
             <View
               style={[
@@ -793,22 +824,34 @@ export default function TeamMembersScreen() {
               <ThemedText
                 style={[styles.memberInitial, { color: BrandColors.gold }]}
               >
-                {user?.name?.[0]?.toUpperCase() ?? "Y"}
+                {isTeamOwner
+                  ? user?.name?.[0]?.toUpperCase() ?? "Y"
+                  : workspaceOwner?.name?.[0]?.toUpperCase() ??
+                    workspaceOwner?.businessName?.[0]?.toUpperCase() ??
+                    "O"}
               </ThemedText>
             </View>
             <View style={styles.memberInfo}>
               <ThemedText style={styles.memberName}>
-                {user?.name ?? "You"}{" "}
-                <ThemedText
-                  style={[styles.youBadge, { color: theme.textTertiary }]}
-                >
-                  (You)
-                </ThemedText>
+                {isTeamOwner
+                  ? (user?.name ?? "You")
+                  : (workspaceOwner?.name ||
+                      workspaceOwner?.businessName ||
+                      "Workspace owner")}{" "}
+                {isTeamOwner ? (
+                  <ThemedText
+                    style={[styles.youBadge, { color: theme.textTertiary }]}
+                  >
+                    (You)
+                  </ThemedText>
+                ) : null}
               </ThemedText>
               <ThemedText
                 style={[styles.memberMeta, { color: theme.textTertiary }]}
               >
-                {user?.email}
+                {isTeamOwner
+                  ? user?.email
+                  : workspaceOwner?.email ?? ""}
               </ThemedText>
             </View>
             <View
@@ -831,16 +874,15 @@ export default function TeamMembersScreen() {
               <ThemedText
                 style={[styles.emptyText, { color: theme.textTertiary }]}
               >
-                No team members yet. Invite someone above to get started.
+                {isTeamOwner
+                  ? "No team members yet. Invite someone above to get started."
+                  : "No other members listed yet."}
               </ThemedText>
             </View>
           ) : (
-            members.map((member) => (
-              <Pressable
-                key={member.id}
-                style={[styles.memberRow, { borderColor: theme.border }]}
-                onPress={() => handleMemberAction(member)}
-              >
+            members.map((member) => {
+              const isYou = member.memberUserId === user?.id;
+              const avatar = (
                 <View
                   style={[
                     styles.memberAvatar,
@@ -853,9 +895,19 @@ export default function TeamMembersScreen() {
                     {member.memberName?.[0]?.toUpperCase() ?? "?"}
                   </ThemedText>
                 </View>
+              );
+              const info = (
                 <View style={styles.memberInfo}>
                   <ThemedText style={styles.memberName}>
                     {member.memberName}
+                    {isYou ? (
+                      <ThemedText
+                        style={[styles.youBadge, { color: theme.textTertiary }]}
+                      >
+                        {" "}
+                        (You)
+                      </ThemedText>
+                    ) : null}
                   </ThemedText>
                   <ThemedText
                     style={[styles.memberMeta, { color: theme.textTertiary }]}
@@ -864,6 +916,8 @@ export default function TeamMembersScreen() {
                     {formatDate(member.joinedAt)}
                   </ThemedText>
                 </View>
+              );
+              const trailing = (
                 <View style={styles.memberTrailing}>
                   <View
                     style={[
@@ -891,14 +945,36 @@ export default function TeamMembersScreen() {
                         member.role.slice(1)}
                     </ThemedText>
                   </View>
-                  <Feather
-                    name="more-vertical"
-                    size={16}
-                    color={theme.textTertiary}
-                  />
+                  {isTeamOwner ? (
+                    <Feather
+                      name="more-vertical"
+                      size={16}
+                      color={theme.textTertiary}
+                    />
+                  ) : null}
                 </View>
-              </Pressable>
-            ))
+              );
+              return isTeamOwner ? (
+                <Pressable
+                  key={member.id}
+                  style={[styles.memberRow, { borderColor: theme.border }]}
+                  onPress={() => handleMemberAction(member)}
+                >
+                  {avatar}
+                  {info}
+                  {trailing}
+                </Pressable>
+              ) : (
+                <View
+                  key={member.id}
+                  style={[styles.memberRow, { borderColor: theme.border }]}
+                >
+                  {avatar}
+                  {info}
+                  {trailing}
+                </View>
+              );
+            })
           )}
         </View>
       </ScrollView>

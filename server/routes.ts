@@ -15,6 +15,7 @@ import {
 } from "./tryOnService";
 import { exportProductsToShopify } from "./shopifyService";
 import { sendTeamInviteEmail } from "./teamInviteMail";
+import { resolveWorkspaceForRequest } from "./workspaceContext";
 
 let _openai: OpenAI | null = null;
 function getOpenAI(): OpenAI {
@@ -83,6 +84,26 @@ function publicBaseUrlFromReq(req: Request): string {
   const forwardedHost = req.header("x-forwarded-host");
   const host = forwardedHost || req.get("host") || "localhost";
   return `${protocol}://${host}`;
+}
+
+async function requireWorkspaceOwnerId(req: Request): Promise<string> {
+  const ctx = await resolveWorkspaceForRequest(req.userId!);
+  return ctx.workspaceOwnerId;
+}
+
+/** Team invites and roster management are for billing owners only, not invited members. */
+async function assertWorkspaceOwnerForTeamManagement(
+  req: Request,
+  res: Response,
+): Promise<boolean> {
+  const membership = await storage.getTeamForUser(req.userId!);
+  if (membership) {
+    res
+      .status(403)
+      .json({ error: "Only the workspace owner can manage the team." });
+    return false;
+  }
+  return true;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -542,6 +563,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.post("/api/team/invite", authenticateToken, async (req: Request, res: Response) => {
     try {
+      if (!(await assertWorkspaceOwnerForTeamManagement(req, res))) return;
       const { email, role } = req.body ?? {};
       if (typeof email !== "string" || !email.trim()) {
         return res.status(400).json({ error: "Email is required" });
@@ -570,18 +592,52 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.get("/api/team/members", authenticateToken, async (req: Request, res: Response) => {
-    const members = await storage.listTeamMembers(req.userId!);
-    const count = await storage.getTeamMemberCount(req.userId!);
-    const user = await storage.getUserById(req.userId!);
-    return res.json({ members, count, plan: user?.subscriptionPlan ?? "free" });
+    const uid = req.userId!;
+    const membership = await storage.getTeamForUser(uid);
+    if (membership) {
+      const ownerUserId = membership.ownerUserId;
+      const [members, count, owner] = await Promise.all([
+        storage.listTeamMembers(ownerUserId),
+        storage.getTeamMemberCount(ownerUserId),
+        storage.getUserById(ownerUserId),
+      ]);
+      return res.json({
+        members,
+        count,
+        plan: owner?.subscriptionPlan ?? "free",
+        viewerRole: "member",
+        workspaceOwner: owner
+          ? {
+              id: owner.id,
+              name: owner.name,
+              email: owner.email,
+              businessName: owner.businessName,
+            }
+          : null,
+        yourTeamRole: membership.role,
+      });
+    }
+    const [members, count, user] = await Promise.all([
+      storage.listTeamMembers(uid),
+      storage.getTeamMemberCount(uid),
+      storage.getUserById(uid),
+    ]);
+    return res.json({
+      members,
+      count,
+      plan: user?.subscriptionPlan ?? "free",
+      viewerRole: "owner",
+    });
   });
 
   app.get("/api/team/invitations", authenticateToken, async (req: Request, res: Response) => {
+    if (!(await assertWorkspaceOwnerForTeamManagement(req, res))) return;
     const invitations = await storage.listTeamInvitations(req.userId!);
     return res.json({ invitations });
   });
 
   app.delete("/api/team/members/:id", authenticateToken, async (req: Request, res: Response) => {
+    if (!(await assertWorkspaceOwnerForTeamManagement(req, res))) return;
     const memberId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const removed = await storage.removeTeamMember(req.userId!, memberId);
     if (!removed) {
@@ -591,6 +647,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.patch("/api/team/members/:id/role", authenticateToken, async (req: Request, res: Response) => {
+    if (!(await assertWorkspaceOwnerForTeamManagement(req, res))) return;
     const memberId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { role } = req.body ?? {};
     if (!role || !["buyer", "assistant"].includes(role)) {
@@ -622,6 +679,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.delete("/api/team/invitations/:id", authenticateToken, async (req: Request, res: Response) => {
+    if (!(await assertWorkspaceOwnerForTeamManagement(req, res))) return;
     const invitationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const cancelled = await storage.cancelTeamInvitation(req.userId!, invitationId);
     if (!cancelled) {
@@ -633,21 +691,24 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── Products CRUD ──────────────────────────────────────────────
 
   app.get("/api/products", authenticateToken, async (req: Request, res: Response) => {
-    const items = await storage.listProducts(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const items = await storage.listProducts(wid);
     return res.json({ products: items });
   });
 
   app.get("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const item = await storage.getProductById(req.userId!, id);
+    const item = await storage.getProductById(wid, id);
     if (!item) return res.status(404).json({ error: "Product not found" });
     return res.json({ product: item });
   });
 
   app.post("/api/products", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const data = req.body;
-      const item = await storage.createProduct(req.userId!, {
+      const item = await storage.createProduct(wid, {
         name: data.name ?? "",
         styleNumber: data.styleNumber ?? "",
         vendorId: data.vendorId ?? "",
@@ -682,6 +743,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.put("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const data = req.body;
       const updates: Record<string, unknown> = {};
@@ -710,7 +772,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
       if (data.imageUri !== undefined) updates.imageUri = data.imageUri;
       if (data.modelImageUri !== undefined) updates.modelImageUri = data.modelImageUri;
 
-      const item = await storage.updateProduct(req.userId!, id, updates);
+      const item = await storage.updateProduct(wid, id, updates);
       if (!item) return res.status(404).json({ error: "Product not found" });
       return res.json({ product: item });
     } catch (error) {
@@ -720,8 +782,9 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.delete("/api/products/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const deleted = await storage.deleteProduct(req.userId!, id);
+    const deleted = await storage.deleteProduct(wid, id);
     if (!deleted) return res.status(404).json({ error: "Product not found" });
     return res.json({ success: true });
   });
@@ -729,6 +792,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // Bulk import (used by local-to-server data migration)
   app.post("/api/products/bulk", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const { products: items } = req.body;
       if (!Array.isArray(items)) return res.status(400).json({ error: "products array required" });
       const mapped = items.map((d: Record<string, unknown>) => ({
@@ -758,7 +822,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
         imageUri: d.imageUri as string | undefined,
         modelImageUri: d.modelImageUri as string | undefined,
       }));
-      const created = await storage.bulkCreateProducts(req.userId!, mapped as any);
+      const created = await storage.bulkCreateProducts(wid, mapped as any);
       return res.json({ count: created.length });
     } catch (error) {
       console.error("Bulk create products error:", error);
@@ -769,21 +833,24 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── Vendors CRUD ──────────────────────────────────────────────
 
   app.get("/api/vendors", authenticateToken, async (req: Request, res: Response) => {
-    const items = await storage.listVendors(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const items = await storage.listVendors(wid);
     return res.json({ vendors: items });
   });
 
   app.get("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const item = await storage.getVendorById(req.userId!, id);
+    const item = await storage.getVendorById(wid, id);
     if (!item) return res.status(404).json({ error: "Vendor not found" });
     return res.json({ vendor: item });
   });
 
   app.post("/api/vendors", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const data = req.body;
-      const item = await storage.createVendor(req.userId!, {
+      const item = await storage.createVendor(wid, {
         name: data.name,
         contactName: data.contactName,
         email: data.email,
@@ -804,8 +871,9 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.put("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-      const item = await storage.updateVendor(req.userId!, id, req.body);
+      const item = await storage.updateVendor(wid, id, req.body);
       if (!item) return res.status(404).json({ error: "Vendor not found" });
       return res.json({ vendor: item });
     } catch (error) {
@@ -815,17 +883,19 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.delete("/api/vendors/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const deleted = await storage.deleteVendor(req.userId!, id);
+    const deleted = await storage.deleteVendor(wid, id);
     if (!deleted) return res.status(404).json({ error: "Vendor not found" });
     return res.json({ success: true });
   });
 
   app.post("/api/vendors/bulk", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const { vendors: items } = req.body;
       if (!Array.isArray(items)) return res.status(400).json({ error: "vendors array required" });
-      const created = await storage.bulkCreateVendors(req.userId!, items);
+      const created = await storage.bulkCreateVendors(wid, items);
       return res.json({ count: created.length });
     } catch (error) {
       console.error("Bulk create vendors error:", error);
@@ -836,21 +906,24 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── Budgets CRUD ──────────────────────────────────────────────
 
   app.get("/api/budgets", authenticateToken, async (req: Request, res: Response) => {
-    const items = await storage.listBudgets(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const items = await storage.listBudgets(wid);
     return res.json({ budgets: items });
   });
 
   app.get("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const item = await storage.getBudgetById(req.userId!, id);
+    const item = await storage.getBudgetById(wid, id);
     if (!item) return res.status(404).json({ error: "Budget not found" });
     return res.json({ budget: item });
   });
 
   app.post("/api/budgets", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const data = req.body;
-      const item = await storage.createBudget(req.userId!, {
+      const item = await storage.createBudget(wid, {
         season: data.season,
         category: data.category,
         vendorId: data.vendorId,
@@ -866,6 +939,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.put("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
       const data = req.body;
       const updates: Record<string, unknown> = {};
@@ -875,7 +949,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
       if (data.amount !== undefined) updates.amount = String(data.amount);
       if (data.spent !== undefined) updates.spent = String(data.spent);
 
-      const item = await storage.updateBudget(req.userId!, id, updates);
+      const item = await storage.updateBudget(wid, id, updates);
       if (!item) return res.status(404).json({ error: "Budget not found" });
       return res.json({ budget: item });
     } catch (error) {
@@ -885,15 +959,17 @@ CRITICAL - This is for WHOLESALE fashion buying:
   });
 
   app.delete("/api/budgets/:id", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-    const deleted = await storage.deleteBudget(req.userId!, id);
+    const deleted = await storage.deleteBudget(wid, id);
     if (!deleted) return res.status(404).json({ error: "Budget not found" });
     return res.json({ success: true });
   });
 
   app.post("/api/budgets/update-spent", authenticateToken, async (req: Request, res: Response) => {
     try {
-      await storage.updateBudgetSpent(req.userId!);
+      const wid = await requireWorkspaceOwnerId(req);
+      await storage.updateBudgetSpent(wid);
       return res.json({ success: true });
     } catch (error) {
       console.error("Update budget spent error:", error);
@@ -903,6 +979,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
 
   app.post("/api/budgets/bulk", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const { budgets: items } = req.body;
       if (!Array.isArray(items)) return res.status(400).json({ error: "budgets array required" });
       const mapped = items.map((d: Record<string, unknown>) => ({
@@ -913,7 +990,7 @@ CRITICAL - This is for WHOLESALE fashion buying:
         amount: String(d.amount ?? 0),
         spent: String(d.spent ?? 0),
       }));
-      const created = await storage.bulkCreateBudgets(req.userId!, mapped);
+      const created = await storage.bulkCreateBudgets(wid, mapped as any);
       return res.json({ count: created.length });
     } catch (error) {
       console.error("Bulk create budgets error:", error);
@@ -924,33 +1001,37 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── Events ──────────────────────────────────────────────
 
   app.get("/api/events", authenticateToken, async (req: Request, res: Response) => {
-    const items = await storage.listEvents(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const items = await storage.listEvents(wid);
     return res.json({ events: items });
   });
 
   app.post("/api/events", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const { name } = req.body ?? {};
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "Event name is required" });
     }
-    const items = await storage.addEvent(req.userId!, name);
+    const items = await storage.addEvent(wid, name);
     return res.json({ events: items });
   });
 
   app.delete("/api/events", authenticateToken, async (req: Request, res: Response) => {
+    const wid = await requireWorkspaceOwnerId(req);
     const { name } = req.body ?? {};
     if (typeof name !== "string" || !name.trim()) {
       return res.status(400).json({ error: "Event name is required" });
     }
-    const items = await storage.deleteEvent(req.userId!, name);
+    const items = await storage.deleteEvent(wid, name);
     return res.json({ events: items });
   });
 
   app.post("/api/events/bulk", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const wid = await requireWorkspaceOwnerId(req);
       const { events: names } = req.body;
       if (!Array.isArray(names)) return res.status(400).json({ error: "events array required" });
-      await storage.bulkCreateEvents(req.userId!, names);
+      await storage.bulkCreateEvents(wid, names);
       return res.json({ success: true });
     } catch (error) {
       console.error("Bulk create events error:", error);
@@ -961,14 +1042,21 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── User Settings ──────────────────────────────────────────────
 
   app.get("/api/settings", authenticateToken, async (req: Request, res: Response) => {
-    const settings = await storage.getUserSettings(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const settings = await storage.getUserSettings(wid);
     return res.json({ settings });
   });
 
   app.put("/api/settings", authenticateToken, async (req: Request, res: Response) => {
     try {
+      const ctx = await resolveWorkspaceForRequest(req.userId!);
+      if (ctx.viewerRole === "member") {
+        return res
+          .status(403)
+          .json({ error: "Only the workspace owner can change settings." });
+      }
       const { markupMultiplier, roundingMode } = req.body ?? {};
-      const settings = await storage.upsertUserSettings(req.userId!, {
+      const settings = await storage.upsertUserSettings(ctx.workspaceOwnerId, {
         markupMultiplier: typeof markupMultiplier === "number" ? markupMultiplier : 2.5,
         roundingMode: ["none", "up", "even"].includes(roundingMode) ? roundingMode : "none",
       });
@@ -982,7 +1070,8 @@ CRITICAL - This is for WHOLESALE fashion buying:
   // ── Dashboard Stats ──────────────────────────────────────────────
 
   app.get("/api/dashboard/stats", authenticateToken, async (req: Request, res: Response) => {
-    const stats = await storage.getDashboardStats(req.userId!);
+    const wid = await requireWorkspaceOwnerId(req);
+    const stats = await storage.getDashboardStats(wid);
     return res.json({ stats });
   });
 

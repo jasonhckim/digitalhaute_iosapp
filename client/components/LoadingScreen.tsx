@@ -29,8 +29,8 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.cream,
   },
   logo: {
-    width: 48,
-    height: 48,
+    width: 88,
+    height: 88,
     marginBottom: Spacing.lg,
   },
   brand: {

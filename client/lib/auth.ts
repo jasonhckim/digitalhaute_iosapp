@@ -326,11 +326,17 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
     if (res.ok) {
       const body = await res.json();
       if (body.user) {
+        const profile: AuthUser = {
+          ...body.user,
+          teamMembership: body.teamMembership ?? null,
+          workspaceOwnerSubscriptionPlan:
+            body.workspaceOwnerSubscriptionPlan ?? null,
+        };
         AsyncStorage.setItem(
           CACHED_PROFILE_KEY,
-          JSON.stringify(body.user),
+          JSON.stringify(profile),
         ).catch(() => {});
-        return body.user;
+        return profile;
       }
     }
   } catch {
@@ -378,7 +384,11 @@ export async function updateProfile(data: {
   }
 
   const body = await res.json();
-  return body.user;
+  return {
+    ...body.user,
+    teamMembership: body.teamMembership ?? null,
+    workspaceOwnerSubscriptionPlan: body.workspaceOwnerSubscriptionPlan ?? null,
+  } as AuthUser;
 }
 
 export async function syncSubscriptionPlan(

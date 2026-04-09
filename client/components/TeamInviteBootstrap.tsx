@@ -22,7 +22,7 @@ function presentFlushResult(r: TeamInviteFlushResult) {
  * Handles team invite deep links / web join URLs: stash token, accept when signed in.
  */
 export function TeamInviteBootstrap() {
-  const { isAuthenticated, isGuest, isLoading } = useAuth();
+  const { isAuthenticated, isGuest, isLoading, refreshUser } = useAuth();
 
   const handleFlushResult = useCallback((r: TeamInviteFlushResult) => {
     presentFlushResult(r);
@@ -34,28 +34,31 @@ export function TeamInviteBootstrap() {
         const stashed = await stashTeamInviteTokenFromUrl(url);
         if (!stashed) return;
         const r = await tryFlushPendingTeamInvite();
+        if (r?.ok) await refreshUser();
         handleFlushResult(r);
       })();
     });
     return () => sub.remove();
-  }, [handleFlushResult]);
+  }, [handleFlushResult, refreshUser]);
 
   useEffect(() => {
     void (async () => {
       const initial = await Linking.getInitialURL();
       if (initial) await stashTeamInviteTokenFromUrl(initial);
       const r = await tryFlushPendingTeamInvite();
+      if (r?.ok) await refreshUser();
       handleFlushResult(r);
     })();
-  }, [handleFlushResult]);
+  }, [handleFlushResult, refreshUser]);
 
   useEffect(() => {
     if (isLoading || !isAuthenticated || isGuest) return;
     void (async () => {
       const r = await tryFlushPendingTeamInvite();
+      if (r?.ok) await refreshUser();
       handleFlushResult(r);
     })();
-  }, [isLoading, isAuthenticated, isGuest, handleFlushResult]);
+  }, [isLoading, isAuthenticated, isGuest, handleFlushResult, refreshUser]);
 
   return null;
 }

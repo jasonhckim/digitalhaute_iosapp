@@ -45,7 +45,7 @@ import {
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { scanLabelImage } from "@/lib/scanLabel";
 import { useAuth } from "@/contexts/AuthContext";
-import { PLANS } from "@/lib/plans";
+import { PLANS, effectiveSubscriptionPlan } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -293,7 +293,7 @@ export default function QuickAddProductScreen() {
       return;
     }
 
-    const plan = user?.subscriptionPlan ?? "free";
+    const plan = effectiveSubscriptionPlan(user ?? null);
     const maxProducts = PLANS[plan]?.maxProducts ?? 10;
     if (maxProducts !== Infinity) {
       const existing = await ProductStorage.getAll();

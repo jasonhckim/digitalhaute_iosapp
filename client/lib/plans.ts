@@ -1,4 +1,4 @@
-import type { SubscriptionPlan } from "@/types";
+import type { AuthUser, SubscriptionPlan } from "@/types";
 
 export const PLANS = {
   free: {
@@ -81,6 +81,34 @@ export function hasFeature(
   const requiredPlan = FEATURE_REQUIRED_PLAN[featureId];
   if (!requiredPlan) return true; // Unknown features are allowed
   return hasPlanOrHigher(plan, requiredPlan);
+}
+
+/** Invited teammates may be on Free but should still open the team roster and shared workspace. */
+export function canViewTeamRoster(
+  plan: SubscriptionPlan | undefined,
+  teamMembership: { ownerUserId: string } | null | undefined,
+): boolean {
+  return hasFeature(plan, "teamMembers") || Boolean(teamMembership?.ownerUserId);
+}
+
+/**
+ * Plan used for inventory / growth-gated UI when the user is a teammate (inherits workspace owner's subscription).
+ */
+export function effectiveSubscriptionPlan(
+  user: Pick<
+    AuthUser,
+    "subscriptionPlan" | "teamMembership" | "workspaceOwnerSubscriptionPlan"
+  > | null,
+): SubscriptionPlan {
+  if (!user) return "free";
+  if (user.teamMembership?.ownerUserId) {
+    return (
+      user.workspaceOwnerSubscriptionPlan ??
+      user.subscriptionPlan ??
+      "free"
+    );
+  }
+  return user.subscriptionPlan ?? "free";
 }
 
 /** Get the CTA text for upgrading to a specific plan */

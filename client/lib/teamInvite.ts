@@ -45,6 +45,7 @@ export async function tryFlushPendingTeamInvite(): Promise<TeamInviteFlushResult
     );
     await AsyncStorage.removeItem(PENDING_TOKEN_KEY);
     await queryClient.invalidateQueries({ queryKey: ["api", "team"] });
+    await queryClient.invalidateQueries({ queryKey: ["api"] });
     return { ok: true };
   } catch (err) {
     const message = parseApiErrorMessage(err);

@@ -33,7 +33,7 @@ import { Vendor, SEASONS, CATEGORIES, ProductStatus } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { scanLabelImage, LabelScanResult } from "@/lib/scanLabel";
 import { useAuth } from "@/contexts/AuthContext";
-import { PLANS } from "@/lib/plans";
+import { PLANS, effectiveSubscriptionPlan } from "@/lib/plans";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -99,7 +99,7 @@ export default function MultiScanScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     // Soft product limit check for free plan
-    const plan = user?.subscriptionPlan ?? "free";
+    const plan = effectiveSubscriptionPlan(user ?? null);
     const maxProducts = PLANS[plan]?.maxProducts ?? 10;
     if (maxProducts !== Infinity) {
       const existing = await ProductStorage.getAll();
