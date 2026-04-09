@@ -14,7 +14,7 @@ import { Button } from "@/components/Button";
 import { UpgradePromptModal } from "@/components/UpgradePromptModal";
 import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
-import { hasFeature } from "@/lib/plans";
+import { hasFeature, canViewTeamRoster } from "@/lib/plans";
 import {
   Spacing,
   BorderRadius,
@@ -105,7 +105,11 @@ export default function AccountScreen() {
   const { user, isAuthenticated, isGuest, logout } = useAuth();
   const [showTeamUpgradeModal, setShowTeamUpgradeModal] = useState(false);
 
-  const canUseTeamMembers = hasFeature(user?.subscriptionPlan, "teamMembers");
+  const canManageTeam = hasFeature(user?.subscriptionPlan, "teamMembers");
+  const showTeamMenu = canViewTeamRoster(
+    user?.subscriptionPlan,
+    user?.teamMembership,
+  );
 
   const appVersion =
     Constants.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "—";
@@ -118,7 +122,7 @@ export default function AccountScreen() {
         : "";
 
   const handleTeamMembersPress = () => {
-    if (canUseTeamMembers) {
+    if (showTeamMenu) {
       navigation.navigate("TeamMembers");
     } else {
       setShowTeamUpgradeModal(true);
@@ -247,7 +251,11 @@ export default function AccountScreen() {
             />
             <MenuItem
               icon="users"
-              label="Team Members"
+              label={
+                user?.teamMembership && !canManageTeam
+                  ? "My team"
+                  : "Team Members"
+              }
               onPress={handleTeamMembersPress}
             />
             <MenuItem

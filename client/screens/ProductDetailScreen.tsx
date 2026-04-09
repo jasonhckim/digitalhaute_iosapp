@@ -26,7 +26,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useAuth } from "@/contexts/AuthContext";
 import { Spacing, BorderRadius, Shadows, BrandColors, FontFamilies } from "@/constants/theme";
 import { ProductStorage, BudgetStorage } from "@/lib/storage";
-import { hasFeature } from "@/lib/plans";
+import { hasFeature, effectiveSubscriptionPlan } from "@/lib/plans";
 import { Product, ProductStatus, STATUS_LABELS } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -46,7 +46,10 @@ export default function ProductDetailScreen() {
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  const canUseSeeOnModel = hasFeature(user?.subscriptionPlan, "seeOnModel");
+  const canUseSeeOnModel = hasFeature(
+    effectiveSubscriptionPlan(user ?? null),
+    "seeOnModel",
+  );
 
   const handleSeeOnModelPress = () => {
     if (canUseSeeOnModel) {

@@ -44,7 +44,7 @@ import { printCatalog, shareCatalogPDF } from "@/lib/exportCatalog";
 import { Product, Vendor, CATEGORIES, AppSettings } from "@/types";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import { hasFeature } from "@/lib/plans";
+import { hasFeature, effectiveSubscriptionPlan } from "@/lib/plans";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -172,7 +172,10 @@ export default function ProductsScreen() {
   const [isExportingShopify, setIsExportingShopify] = useState(false);
   const [showShopifyUpgradeModal, setShowShopifyUpgradeModal] = useState(false);
 
-  const canUseShopifyExport = hasFeature(user?.subscriptionPlan, "shopifyUpload");
+  const canUseShopifyExport = hasFeature(
+    effectiveSubscriptionPlan(user ?? null),
+    "shopifyUpload",
+  );
 
   const loadData = useCallback(async () => {
     try {

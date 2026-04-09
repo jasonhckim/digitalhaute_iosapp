@@ -1008,6 +1008,15 @@ export class DatabaseStorage implements IStorage {
       return { success: false, reason: "You are already on this team." };
     }
 
+    const otherTeam = await this.getTeamForUser(acceptingUserId);
+    if (otherTeam && otherTeam.ownerUserId !== invitation.inviterUserId) {
+      return {
+        success: false,
+        reason:
+          "You are already on another team. Ask that workspace owner to remove you before joining this one.",
+      };
+    }
+
     await db.insert(teamMembers).values({
       id: randomUUID(),
       ownerUserId: invitation.inviterUserId,
@@ -1120,6 +1129,7 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
+  /** Active membership as a non-owner; at most one workspace should apply (enforced on invite accept). */
   async getTeamForUser(
     userId: string,
   ): Promise<{ ownerUserId: string; role: string } | undefined> {

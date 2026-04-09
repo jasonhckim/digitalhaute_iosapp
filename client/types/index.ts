@@ -149,6 +149,13 @@ export type UserRole = "owner" | "buyer" | "assistant";
 
 export type SubscriptionPlan = "free" | "starter" | "growth" | "vip";
 
+export type TeamMembershipRole = "buyer" | "assistant";
+
+export interface TeamMembership {
+  ownerUserId: string;
+  role: TeamMembershipRole;
+}
+
 export interface AuthUser {
   id: string;
   businessName: string;
@@ -158,6 +165,10 @@ export interface AuthUser {
   avatarUrl?: string | null;
   subscriptionPlan?: SubscriptionPlan;
   createdAt: string;
+  /** Set when this account is a invited member of another user's workspace. */
+  teamMembership?: TeamMembership | null;
+  /** Owner's plan when `teamMembership` is set; used for growth-gated features in the shared workspace. */
+  workspaceOwnerSubscriptionPlan?: SubscriptionPlan | null;
 }
 
 export interface NotificationSettings {

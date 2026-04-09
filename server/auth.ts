@@ -200,7 +200,22 @@ export function registerAuthRoutes(app: Express) {
           return res.status(404).json({ error: "User not found" });
         }
 
-        res.json({ user: sanitizeUser(updated) });
+        const teamMembership = await storage.getTeamForUser(uid);
+        let workspaceOwnerSubscriptionPlan: string | null = null;
+        if (teamMembership) {
+          const ownerUser = await storage.getUserById(teamMembership.ownerUserId);
+          workspaceOwnerSubscriptionPlan = ownerUser?.subscriptionPlan ?? "free";
+        }
+        res.json({
+          user: sanitizeUser(updated),
+          teamMembership: teamMembership
+            ? {
+                ownerUserId: teamMembership.ownerUserId,
+                role: teamMembership.role,
+              }
+            : null,
+          workspaceOwnerSubscriptionPlan,
+        });
       } catch (error) {
         console.error("Profile update error:", error);
         res.status(500).json({ error: "Failed to update profile" });
@@ -235,7 +250,22 @@ export function registerAuthRoutes(app: Express) {
           }
         }
 
-        res.json({ user: sanitizeUser(user) });
+        const teamMembership = await storage.getTeamForUser(uid);
+        let workspaceOwnerSubscriptionPlan: string | null = null;
+        if (teamMembership) {
+          const ownerUser = await storage.getUserById(teamMembership.ownerUserId);
+          workspaceOwnerSubscriptionPlan = ownerUser?.subscriptionPlan ?? "free";
+        }
+        res.json({
+          user: sanitizeUser(user),
+          teamMembership: teamMembership
+            ? {
+                ownerUserId: teamMembership.ownerUserId,
+                role: teamMembership.role,
+              }
+            : null,
+          workspaceOwnerSubscriptionPlan,
+        });
       } catch (error) {
         console.error("Get user error:", error);
         res.status(500).json({ error: "Failed to get user" });

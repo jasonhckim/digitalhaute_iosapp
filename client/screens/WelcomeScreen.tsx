@@ -128,8 +128,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 132,
+    height: 132,
     marginBottom: Spacing["2xl"],
   },
   title: {
